@@ -1,0 +1,86 @@
+# Deploy kubernetes via minikube.
+
+# It can be accessed from the host by exporting the kubeconfig file;
+# the ports are already forwarded automatically by lima:
+#
+# $ export KUBECONFIG=$PWD/kubeconfig.yaml
+# $ limactl shell minikube sudo cat /etc/kubernetes/admin.conf | sed -e 's/control-plane.minikube.internal/127.0.0.1/' >$KUBECONFIG
+# $ kubectl get no
+# NAME            STATUS   ROLES                  AGE   VERSION
+# lima-minikube   Ready    control-plane,master   30s   v1.22.3
+
+# This example requires Lima v0.7.0 or later.
+images:
+  # Image is set to focal (20.04 LTS) for long-term stability
+  # Hint: run `limactl prune` to invalidate the "current" cache
+  - location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+    arch: "x86_64"
+  - location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img"
+    arch: "aarch64"
+# Mounts are disabled in this example, but can be enabled optionally.
+mounts: []
+containerd:
+  system: true
+  user: false
+# See https://minikube.sigs.k8s.io/docs/start/
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      command -v kubectl  >/dev/null 2>&1 && exit 0
+      # Installation
+      case $(uname -m) in
+        x86_64)
+          arch=amd64
+          ;;
+        aarch64)
+          arch=arm64
+          ;;
+      esac
+      curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-${arch}
+      install minikube-linux-${arch} /usr/local/bin/minikube
+      ln -s minikube /usr/local/bin/kubectl
+      ln -s /bin/false /usr/local/bin/docker # bug in "none"
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y conntrack
+      # cri-tools
+      CRICTL_VERSION=1.22.0
+      curl -sSLO https://github.com/kubernetes-sigs/cri-tools/releases/download/v${CRICTL_VERSION}/crictl-v${CRICTL_VERSION}-linux-${arch}.tar.gz
+      tar xzf crictl-v${CRICTL_VERSION}-linux-${arch}.tar.gz crictl
+      install crictl /usr/local/bin/crictl
+      # cni-plugins
+      mkdir /opt/cni && ln -s /usr/local/libexec/cni /opt/cni/bin
+      chmod 755 /etc/cni /etc/cni/net.d && rm -f /etc/cni/net.d/*.conf*
+  - mode: user
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      minikube start --driver=none --container-runtime=containerd --cni=bridge
+probes:
+  - script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 30s bash -c "until command -v kubectl >/dev/null 2>&1; do sleep 3; done"; then
+        echo >&2 "kubectl is not installed yet"
+        exit 1
+      fi
+    hint: |
+      See "/var/log/cloud-init-output.log". in the guest
+  - script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 300s bash -c "until test -f /etc/kubernetes/admin.conf; do sleep 3; done"; then
+        echo >&2 "k8s is not running yet"
+        exit 1
+      fi
+    hint: |
+      The k8s kubeconfig file has not yet been created.
+  - script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 300s bash -c "until kubectl version >/dev/null 2>&1; do sleep 3; done"; then
+        echo >&2 "kubernetes cluster is not up and running yet"
+        exit 1
+      fi
