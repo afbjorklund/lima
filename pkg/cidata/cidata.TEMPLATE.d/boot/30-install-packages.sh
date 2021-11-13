@@ -43,6 +43,26 @@ elif command -v dnf >/dev/null 2>&1; then
 		if ! command -v sshfs >/dev/null 2>&1; then
 			if grep -q "release 8" /etc/system-release; then
 				dnf install --enablerepo powertools -y fuse-sshfs
+			elif grep -q "release 9" /etc/system-release; then
+				cat <<EOF | sudo tee /etc/yum.repos.d/fedora.repo
+[fedora]
+name=Fedora 34 - \$basearch
+metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-34&arch=\$basearch
+gpgcheck=0
+includepkgs=fuse-sshfs
+EOF
+				cat <<EOF | sudo tee /etc/yum.repos.d/fedora-updates.repo
+[updates]
+name=Fedora 34 - \$basearch - Updates
+metalink=https://mirrors.fedoraproject.org/metalink?repo=updates-released-f34&arch=\$basearch
+gpgcheck=0
+includepkgs=fuse-sshfs
+EOF
+				dnf install -y fuse-sshfs
+				rm -f /etc/yum.repos.d/fedora.repo
+				rm -rf /var/cache/dnf/fedora*
+				rm -f /etc/yum.repos.d/fedora-updates.repo
+				rm -rf /var/cache/dnf/updates*
 			else
 				dnf install -y fuse-sshfs
 			fi

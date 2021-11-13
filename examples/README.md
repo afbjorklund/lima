@@ -6,6 +6,7 @@ Distro:
 - [`alpine.yaml`](./alpine.yaml): Alpine Linux
 - [`archlinux.yaml`](./archlinux.yaml): Arch Linux
 - [`centos.yaml`](./centos.yaml): CentOS Linux
+- [`stream.yaml`](./stream.yaml): CentOS Stream
 - [`debian.yaml`](./debian.yaml): Debian GNU/Linux
 - [`fedora.yaml`](./fedora.yaml): Fedora
 - [`opensuse.yaml`](./opensuse.yaml): openSUSE Leap
