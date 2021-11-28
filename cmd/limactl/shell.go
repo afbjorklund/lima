@@ -7,8 +7,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alessio/shellescape"
+	"github.com/afbjorklund/go-termbg/pkg/termbg"
 	"github.com/lima-vm/lima/pkg/sshutil"
 	"github.com/lima-vm/lima/pkg/store"
 	"github.com/mattn/go-isatty"
@@ -131,6 +133,12 @@ func shellAction(cmd *cobra.Command, args []string) error {
 		// SendEnv config is cumulative, with already existing options in ssh_config
 		sshArgs = append(sshArgs, "-o", "SendEnv=\"COLORTERM\"")
 	}
+	sshEnv := os.Environ()
+	if theme, err := termbg.NewTheme(100 * time.Millisecond); err == nil {
+		logrus.Debugf("Terminal Background Theme=%s", theme)
+		sshEnv = append(sshEnv, fmt.Sprintf("TERMTHEME=%s", theme))
+		sshArgs = append(sshArgs, "-o", "SendEnv=\"TERMTHEME\"")
+	}
 	sshArgs = append(sshArgs, []string{
 		"-q",
 		"-p", strconv.Itoa(inst.SSHLocalPort),
@@ -139,6 +147,7 @@ func shellAction(cmd *cobra.Command, args []string) error {
 		script,
 	}...)
 	sshCmd := exec.Command(arg0, sshArgs...)
+	sshCmd.Env = sshEnv
 	sshCmd.Stdin = os.Stdin
 	sshCmd.Stdout = os.Stdout
 	sshCmd.Stderr = os.Stderr
