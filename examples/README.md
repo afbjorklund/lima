@@ -39,6 +39,7 @@ Container orchestration:
 - [`faasd.yaml`](./faasd.yaml): [Faasd](https://docs.openfaas.com/deployment/faasd/)
 - [`k3s.yaml`](./k3s.yaml): Kubernetes via k3s
 - [`k8s.yaml`](./k8s.yaml): Kubernetes via kubeadm
+- [`k3d.yaml`](./k3d.yaml): Kubernetes via [k3d](https://k3d.io/)
 - [`nomad.yaml`](./nomad.yaml): Nomad
 
 Optional feature enablers:

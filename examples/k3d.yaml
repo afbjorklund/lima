@@ -1,0 +1,119 @@
+# Deploy kubernetes via k3d (k3s-in-docker)
+# $ limactl start ./k3d.yaml
+# $ limactl shell k3d kubectl cluster-info
+# $ limactl shell k3d docker container ps
+
+# This example requires Lima v0.8.0 or later
+images:
+# Hint: run `limactl prune` to invalidate the cache
+- location: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
+  arch: "x86_64"
+- location: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-arm64.img"
+  arch: "aarch64"
+
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+# containerd is managed by Docker, not by Lima, so the values are set to false here.
+containerd:
+  system: false
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/sh
+    sed -i 's/host.lima.internal.*/host.lima.internal host.docker.internal/' /etc/hosts
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v docker >/dev/null 2>&1 && exit 0
+    if [ ! -e /etc/systemd/system/docker.socket.d/override.conf ]; then
+      mkdir -p /etc/systemd/system/docker.socket.d
+      # Alternatively we could just add the user to the "docker" group, but that requires restarting the user session
+      cat <<-EOF >/etc/systemd/system/docker.socket.d/override.conf
+      [Socket]
+      SocketUser=${LIMA_CIDATA_USER}
+    EOF
+    fi
+    export DEBIAN_FRONTEND=noninteractive
+    curl -fsSL https://get.docker.com | sh
+# See https://k3d.io/#installation
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v k3d >/dev/null 2>&1 && exit 0
+    curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
+    k3d completion bash >/etc/bash_completion.d/k3d
+# See https://kubernetes.io/docs/tasks/tools/#kubectl
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v kubectl >/dev/null 2>&1 && exit 0
+    kube_version=$(k3d --version | grep -o '^k3s version v[0-9.]*' | sed -e 's/k3s version //')
+    case $(uname -m) in
+      x86_64)
+        curl -sSL -o kubectl https://dl.k8s.io/release/${kube_version}/bin/linux/amd64/kubectl
+        ;;
+      aarch64)
+        curl -sSL -o kubectl https://dl.k8s.io/release/${kube_version}/bin/linux/arm64/kubectl
+        ;;
+    esac
+    install kubectl /usr/local/bin/kubectl
+    rm -f kubectl
+    kubectl completion bash >/etc/bash_completion.d/kubectl
+- mode: user
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    docker container inspect -f '{{.Id}}' k3d-mycluster-server-0 && exit 0
+    k3d cluster create mycluster
+probes:
+- description: "docker to be installed"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "docker is not installed yet"
+      exit 1
+    fi
+    if ! timeout 30s bash -c "until pgrep dockerd; do sleep 3; done"; then
+      echo >&2 "dockerd is not running"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log". in the guest
+- description: "k3d to be installed"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v k3d >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "k3d is not installed yet"
+      exit 1
+    fi
+    if ! timeout 30s bash -c "until command -v kubectl >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "kubectl is not installed yet"
+      exit 1
+    fi
+hostResolver:
+  hosts:
+    host.docker.internal: host.lima.internal
+portForwards:
+- guestSocket: "/var/run/docker.sock"
+  hostSocket: "{{.Dir}}/sock/docker.sock"
+message: |
+  To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
+  ------
+  mkdir -p "{{.Dir}}/conf"
+  export KUBECONFIG="{{.Dir}}/conf/kubeconfig.yaml"
+  limactl shell {{.Name}} sh -c 'cat ~/.kube/config' >$KUBECONFIG
+  kubectl ...
+  ------
+
+  To run `docker` on the host (assumes docker-cli is installed), run the following commands:
+  ------
+  export DOCKER_HOST="unix://{{.Dir}}/sock/docker.sock"
+  docker ...
+  ------
