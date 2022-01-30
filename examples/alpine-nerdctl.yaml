@@ -1,0 +1,20 @@
+# This example requires Lima v0.7.0 or later.
+images:
+- location: https://github.com/afbjorklund/alpine-lima/releases/download/v0.2.5-editions/alpine-lima-nc-3.14.3-x86_64.iso
+  arch: "x86_64"
+  digest: "sha512:bd6619bd47272a8b7cc9aa2eb568b132601da177b481b05236af51d830ba098703ae7a57e77b46475da4910ade9739b58fbc9c948561b167028c076f3fb8e82f"
+- location: https://github.com/afbjorklund/alpine-lima/releases/download/v0.2.5-editions/alpine-lima-nc-3.14.3-aarch64.iso
+  arch: "aarch64"
+  digest: "sha512:62f1c620a89b67fc4be8d854b0cca470665bb12150b26304db03540adc82985da62f9720a17e1c1ba8cff6b14abfe4b05108db391d9447548fb4f54b33ae227e"
+
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+
+firmware:
+  legacyBIOS: true
+
+containerd:
+  system: false
+  user: false
