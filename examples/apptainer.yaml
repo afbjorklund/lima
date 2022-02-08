@@ -1,0 +1,72 @@
+# Example to use Singularity instead of containerd & nerdctl
+# $ limactl start ./apptainer.yaml
+# $ limactl shell apptainer singularity run -u -B $HOME:$HOME docker://alpine
+
+images:
+# Hint: run `limactl prune` to invalidate the "current" cache
+- location: "https://cloud-images.ubuntu.com/impish/current/impish-server-cloudimg-amd64.img"
+  arch: "x86_64"
+- location: "https://cloud-images.ubuntu.com/impish/current/impish-server-cloudimg-arm64.img"
+  arch: "aarch64"
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+containerd:
+  system: false
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    sudo apt-get update
+    sudo apt-get install -y \
+    build-essential \
+    libseccomp-dev \
+    pkg-config \
+    squashfs-tools \
+    cryptsetup \
+    curl wget git
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    export PATH=/usr/local/go/bin:$PATH
+    command -v go >/dev/null 2>&1 && exit 0
+    VERSION=1.17.5
+    OS=linux
+    case $(uname -m) in
+      x86_64)   ARCH=amd64;;
+      aarch64)  ARCH=arm64;;
+    esac
+    wget -nv https://dl.google.com/go/go$VERSION.$OS-$ARCH.tar.gz && \
+    sudo tar -C /usr/local -xzvf go$VERSION.$OS-$ARCH.tar.gz && \
+    rm go$VERSION.$OS-$ARCH.tar.gz
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v singularity >/dev/null 2>&1 && exit 0
+    #apt install -y singularity
+    export PATH=/usr/local/go/bin:$PATH
+    export HOME=/root
+    cd
+    export GOPATH=~/go
+    VERSION=1.0.0-rc.1
+    wget -nv https://github.com/apptainer/apptainer/releases/download/v${VERSION}/apptainer-${VERSION}.tar.gz && \
+    tar -xzf apptainer-${VERSION}.tar.gz && \
+    rm apptainer-${VERSION}.tar.gz
+    cd apptainer-${VERSION}
+    ./mconfig && \
+    make -C builddir && \
+    sudo make -C builddir install
+probes:
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 300s bash -c "until command -v singularity >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "singularity is not installed yet"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log". in the guest
