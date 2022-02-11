@@ -1,0 +1,77 @@
+# Example to use Singularity instead of containerd & nerdctl
+# $ limactl start ./alpine-apptainer.yaml
+# $ limactl shell alpine-apptainer singularity run -u -B $HOME:$HOME docker://alpine
+
+images:
+- location: https://github.com/lima-vm/alpine-lima/releases/download/v0.2.6/alpine-lima-std-3.14.3-x86_64.iso
+  arch: "x86_64"
+  digest: "sha512:0f5f1947733b1ac426edf43909bba44cb7a948030701d25fa3661feadb13af26896d3ab962b1e8ba986e6ad2f8e3169a07a3f56f3ed47f090680f2b57b0427ae"
+- location: https://github.com/lima-vm/alpine-lima/releases/download/v0.2.6/alpine-lima-std-3.14.3-aarch64.iso
+  arch: "aarch64"
+  digest: "sha512:d29c48b7214a4752a96403f68a7740f4adc04517e1c4430d73fcfb57a82071911beeacd3aa3daaaab589c373f09bf5b25e4b71cd4784f7c6855b39e7798c087e"
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+firmware:
+  legacyBIOS: true
+containerd:
+  system: false
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    sudo apk add \
+    build-base \
+    libseccomp-dev \
+    pkgconf \
+    squashfs-tools \
+    cryptsetup \
+    curl wget git
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    export PATH=/usr/local/go/bin:$PATH
+    command -v go >/dev/null 2>&1 && exit 0
+    VERSION=1.17.5
+    OS=linux
+    case $(uname -m) in
+      x86_64)   ARCH=amd64;;
+      aarch64)  ARCH=arm64;;
+    esac
+    wget -nv https://dl.google.com/go/go$VERSION.$OS-$ARCH.tar.gz && \
+    sudo tar -C /usr/local -xzvf go$VERSION.$OS-$ARCH.tar.gz && \
+    rm go$VERSION.$OS-$ARCH.tar.gz
+    # glibc compat and localtime
+    sudo apk add gcompat tzdata
+    ln -s /usr/share/zoneinfo/UTC /etc/localtime
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v singularity >/dev/null 2>&1 && exit 0
+    #apk add singularity
+    export PATH=/usr/local/go/bin:$PATH
+    export HOME=/root
+    cd
+    export GOPATH=~/go
+    VERSION=1.0.0-rc.1
+    wget -nv https://github.com/apptainer/apptainer/releases/download/v${VERSION}/apptainer-${VERSION}.tar.gz && \
+    tar -xzf apptainer-${VERSION}.tar.gz && \
+    rm apptainer-${VERSION}.tar.gz
+    cd apptainer-${VERSION}
+    ./mconfig && \
+    make -C builddir && \
+    sudo make -C builddir install
+probes:
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 300s bash -c "until command -v singularity >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "singularity is not installed yet"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log". in the guest
