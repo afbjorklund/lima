@@ -11,8 +11,10 @@ for f in $(seq 0 $((LIMA_CIDATA_MOUNTS - 1))); do
 	gid=$(id -g "${LIMA_CIDATA_USER}")
 	chown "${LIMA_CIDATA_UID}:${gid}" "${mountpoint}"
 
+	mountpointopt="LIMA_CIDATA_MOUNTS_${f}_MOUNTOPTION"
+	option="$(eval echo \$"$mountpointopt")"
 	tag="mount${f}"
-	mount -t 9p -o trans=virtio "${tag}" "${mountpoint}" -o version=9p2000.L,msize=131072
+	mount -t 9p -o trans=virtio "${tag}" "${mountpoint}" -o version=9p2000.L,msize=131072 -o "${option}"
 done
 
 # Install or update the guestagent binary

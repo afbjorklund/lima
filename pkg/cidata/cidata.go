@@ -126,6 +126,11 @@ func GenerateISO9660(instDir, name string, y *limayaml.LimaYAML, udpDNSLocalPort
 			return err
 		}
 		args.Mounts = append(args.Mounts, expanded)
+		option := "ro"
+		if *f.Writable {
+			option = "rw"
+		}
+		args.Options = append(args.Options, option)
 	}
 
 	slirpMACAddress := limayaml.MACAddress(instDir)

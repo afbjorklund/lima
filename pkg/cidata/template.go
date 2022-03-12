@@ -34,6 +34,7 @@ type TemplateArgs struct {
 	UID             int
 	SSHPubKeys      []string
 	Mounts          []string // abs path, accessible by the User
+	Options         []string // mount option, usually "rw" or "ro"
 	Containerd      Containerd
 	Networks        []Network
 	SlirpNICName    string
@@ -65,6 +66,11 @@ func ValidateTemplateArgs(args TemplateArgs) error {
 	for i, f := range args.Mounts {
 		if !filepath.IsAbs(f) {
 			return fmt.Errorf("field mounts[%d] must be absolute, got %q", i, f)
+		}
+	}
+	for i, o := range args.Options {
+		if o != "ro" && o != "rw" {
+			return fmt.Errorf("field options[%d] is not rw or ro, got %q", i, o)
 		}
 	}
 	return nil
