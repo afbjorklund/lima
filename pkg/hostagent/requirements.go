@@ -88,6 +88,7 @@ it must not be created until the session reset is done.
 		})
 
 	if len(a.y.Mounts) > 0 {
+/*
 		req = append(req, requirement{
 			description: "sshfs binary to be installed",
 			script: `#!/bin/bash
@@ -114,6 +115,7 @@ fi
 `,
 			debugHint: `Append "user_allow_other" to /etc/fuse.conf in the guest`,
 		})
+*/
 
 	}
 	req = append(req, requirement{

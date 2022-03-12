@@ -16,6 +16,7 @@ import (
 	"github.com/lima-vm/lima/pkg/downloader"
 	"github.com/lima-vm/lima/pkg/iso9660util"
 	"github.com/lima-vm/lima/pkg/limayaml"
+	"github.com/lima-vm/lima/pkg/localpathutil"
 	"github.com/lima-vm/lima/pkg/networks"
 	qemu "github.com/lima-vm/lima/pkg/qemu/const"
 	"github.com/lima-vm/lima/pkg/qemu/imgutil"
@@ -371,6 +372,15 @@ func Cmdline(cfg Config) (string, []string, error) {
 	args = append(args, "-serial", "chardev:"+serialChardev)
 
 	// We also want to enable vsock and virtfs here, but QEMU does not support vsock and virtfs for macOS hosts
+
+	for i, f := range y.Mounts {
+		expanded, err := localpathutil.Expand(f.Location)
+		if err != nil {
+			return "", nil, err
+		}
+		tag := fmt.Sprintf("mount%d", i)
+		args = append(args, "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=%s,security_model=mapped-xattr", expanded, tag))
+	}
 
 	// QMP
 	qmpSock := filepath.Join(cfg.InstanceDir, filenames.QMPSock)

@@ -378,6 +378,8 @@ func (a *HostAgent) startHostAgentRoutines(ctx context.Context) error {
 	if err := a.waitForRequirements(ctx, "essential", a.essentialRequirements()); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
+
+/*
 	mounts, err := a.setupMounts(ctx)
 	if err != nil {
 		mErr = multierror.Append(mErr, err)
@@ -391,6 +393,7 @@ func (a *HostAgent) startHostAgentRoutines(ctx context.Context) error {
 		}
 		return unmountMErr
 	})
+*/
 	go a.watchGuestAgentEvents(ctx)
 	if err := a.waitForRequirements(ctx, "optional", a.optionalRequirements()); err != nil {
 		mErr = multierror.Append(mErr, err)

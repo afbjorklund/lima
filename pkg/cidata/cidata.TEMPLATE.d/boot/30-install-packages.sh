@@ -21,9 +21,9 @@ fi
 # Install minimum dependencies
 if command -v apt-get >/dev/null 2>&1; then
 	pkgs=""
-	if [ "${LIMA_CIDATA_MOUNTS}" -gt 0 ] && ! command -v sshfs >/dev/null 2>&1; then
-		pkgs="${pkgs} sshfs"
-	fi
+	#if [ "${LIMA_CIDATA_MOUNTS}" -gt 0 ] && ! command -v sshfs >/dev/null 2>&1; then
+	#	pkgs="${pkgs} sshfs"
+	#fi
 	if [ "${INSTALL_IPTABLES}" = 1 ] && [ ! -e /usr/sbin/iptables ]; then
 		pkgs="${pkgs} iptables"
 	fi
@@ -98,9 +98,9 @@ elif command -v zypper >/dev/null 2>&1; then
 	fi
 elif command -v apk >/dev/null 2>&1; then
 	pkgs=""
-	if [ "${LIMA_CIDATA_MOUNTS}" -gt 0 ] && ! command -v sshfs >/dev/null 2>&1; then
-		pkgs="${pkgs} sshfs"
-	fi
+	#if [ "${LIMA_CIDATA_MOUNTS}" -gt 0 ] && ! command -v sshfs >/dev/null 2>&1; then
+	#	pkgs="${pkgs} sshfs"
+	#fi
 	if [ "${INSTALL_IPTABLES}" = 1 ] && ! command -v iptables >/dev/null 2>&1; then
 		pkgs="${pkgs} iptables"
 	fi
@@ -125,4 +125,4 @@ fi
 
 # update_fuse_conf has to be called after installing all the packages,
 # otherwise apt-get fails with conflict
-update_fuse_conf
+#update_fuse_conf

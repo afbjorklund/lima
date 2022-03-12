@@ -10,6 +10,9 @@ for f in $(seq 0 $((LIMA_CIDATA_MOUNTS - 1))); do
 	mkdir -p "${mountpoint}"
 	gid=$(id -g "${LIMA_CIDATA_USER}")
 	chown "${LIMA_CIDATA_UID}:${gid}" "${mountpoint}"
+
+	tag="mount${f}"
+	mount -t 9p -o trans=virtio "${tag}" "${mountpoint}" -o version=9p2000.L,msize=131072
 done
 
 # Install or update the guestagent binary
