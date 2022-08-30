@@ -55,20 +55,36 @@ provision:
     # Installing kubeadm, kubelet and kubectl
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
-    apt-get install -y apt-transport-https ca-certificates curl
-    curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
-    echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-    apt-get update
+    apt-get install -y iproute2 socat util-linux mount ebtables ethtool conntrack
+    case $(uname -m) in
+      x86_64)   ARCH="amd64";;
+      aarch64)  ARCH="arm64";;
+    esac
     # cri-tools
-    apt-get install -y cri-tools
+    CRICTL_VERSION="v1.24.2"
+    sudo mkdir -p /usr/local/bin
+    curl -L "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-${ARCH}.tar.gz" | sudo tar -C /usr/local/bin -xz
     cat  <<EOF | sudo tee /etc/crictl.yaml
     runtime-endpoint: unix:///run/containerd/containerd.sock
     image-endpoint: unix:///run/containerd/containerd.sock
     EOF
     # cni-plugins
-    apt-get install -y kubernetes-cni
+    CNI_VERSION="v1.1.1"
+    sudo mkdir -p /opt/cni/bin
+    curl -L "https://github.com/containernetworking/plugins/releases/download/${CNI_VERSION}/cni-plugins-linux-${ARCH}-${CNI_VERSION}.tgz" | sudo tar -C /opt/cni/bin -xz
     rm -f /etc/cni/net.d/*.conf*
-    apt-get install -y kubelet kubeadm kubectl && apt-mark hold kubelet kubeadm kubectl
+    # kubeadm kubelet kubectl
+    DOWNLOAD_DIR=/usr/local/bin
+    sudo mkdir -p $DOWNLOAD_DIR
+    RELEASE="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
+    curl -L --remote-name-all https://dl.k8s.io/release/${RELEASE}/bin/linux/${ARCH}/{kubeadm,kubelet,kubectl}
+    sudo install -o root -g root -m 0755 -t $DOWNLOAD_DIR {kubeadm,kubelet,kubectl} && rm {kubeadm,kubelet,kubectl}
+    RELEASE_VERSION="v0.4.0"
+    sudo mkdir -p /usr/local/lib/systemd/system
+    curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/kubepkg/templates/latest/deb/kubelet/lib/systemd/system/kubelet.service" | sed "s:/usr/bin:${DOWNLOAD_DIR}:g" | sudo tee /usr/local/lib/systemd/system/kubelet.service
+    sudo mkdir -p /etc/systemd/system/kubelet.service.d
+    curl -sSL "https://raw.githubusercontent.com/kubernetes/release/${RELEASE_VERSION}/cmd/kubepkg/templates/latest/deb/kubeadm/10-kubeadm.conf" | sed "s:/usr/bin:${DOWNLOAD_DIR}:g" | sudo tee /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+    systemctl daemon-reload
     systemctl enable --now kubelet
 # See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
 - mode: system
