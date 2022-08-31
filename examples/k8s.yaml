@@ -1,4 +1,4 @@
-# Deploy kubernetes via kubeadm.
+# Deploy kubernetes via kubeadm (including an external containerd).
 # $ limactl start ./k8s.yaml
 # $ limactl shell k8s sudo kubectl
 
@@ -29,10 +29,33 @@ images:
 
 # Mounts are disabled in this example, but can be enabled optionally.
 mounts: []
+
+# containerd is managed by k8s, not by Lima, so the values are set to false here.
 containerd:
-  system: true
+  system: false
   user: false
 provision:
+# See <https://containerd.io/docs/getting-started/>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v containerd >/dev/null 2>&1 && exit 0
+    case $(uname -m) in
+      x86_64)   ARCH="amd64";;
+      aarch64)  ARCH="arm64";;
+    esac
+    CONTAINERD_VERSION="v1.6.6"
+    sudo mkdir -p /usr/local/bin
+    curl -L https://github.com/containerd/containerd/releases/download/${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION/v/}-linux-${ARCH}.tar.gz | sudo tar -C /usr/local -xz
+    RUNC_VERSION="v1.1.3"
+    sudo mkdir -p /usr/local/sbin
+    curl -L --remote-name https://github.com/opencontainers/runc/releases/download/${RUNC_VERSION}/runc.${ARCH}
+    sudo install -m 755 runc.${ARCH} /usr/local/sbin/runc && rm runc.${ARCH}
+    sudo mkdir -p /usr/local/lib/systemd/system
+    curl -sSL "https://raw.githubusercontent.com/containerd/containerd/${CONTAINERD_VERSION}/containerd.service" | sudo tee /usr/local/lib/systemd/system/containerd.service
+    systemctl daemon-reload
+    systemctl enable --now containerd
 # See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/>
 - mode: system
   script: |
@@ -92,19 +115,20 @@ provision:
     #!/bin/bash
     set -eux -o pipefail
     grep SystemdCgroup /etc/containerd/config.toml && exit 0
-    grep "version = 2" /etc/containerd/config.toml || exit 1
     # Configuring the systemd cgroup driver
     # Overriding the sandbox (pause) image
-    cat <<EOF >>/etc/containerd/config.toml
-      [plugins]
-        [plugins."io.containerd.grpc.v1.cri"]
-          sandbox_image = "$(kubeadm config images list | grep pause | sort -r | head -n1)"
-          [plugins."io.containerd.grpc.v1.cri".containerd]
-            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-                runtime_type = "io.containerd.runc.v2"
-                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-                  SystemdCgroup = true
+    mkdir -p /etc/containerd
+    cat <<EOF >/etc/containerd/config.toml
+    version = 2
+    [plugins]
+      [plugins."io.containerd.grpc.v1.cri"]
+        sandbox_image = "$(kubeadm config images list | grep pause | sort -r | head -n1)"
+        [plugins."io.containerd.grpc.v1.cri".containerd]
+          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+              runtime_type = "io.containerd.runc.v2"
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+                SystemdCgroup = true
     EOF
     systemctl restart containerd
 # See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/>
