@@ -70,7 +70,7 @@ provision:
     #!/bin/bash
     set -eux -o pipefail
     docker container inspect -f '{{.Id}}' k3d-mycluster-server-0 && exit 0
-    k3d cluster create mycluster
+    k3d cluster create mycluster --servers 1 --agents 3
 probes:
 - description: "docker to be installed"
   script: |
