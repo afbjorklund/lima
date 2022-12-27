@@ -80,7 +80,16 @@ provision:
     #!/bin/bash
     set -eux -o pipefail
     docker container inspect -f '{{.Id}}' kind-control-plane && exit 0
-    kind create cluster
+    cat <<EOF >kind-config.yaml
+    kind: Cluster
+    apiVersion: kind.x-k8s.io/v1alpha4
+    nodes:
+    - role: control-plane
+    - role: worker
+    - role: worker
+    - role: worker
+    EOF
+    kind create cluster --config kind-config.yaml
 probes:
 - description: "docker to be installed"
   script: |
