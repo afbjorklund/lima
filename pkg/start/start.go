@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -34,6 +35,7 @@ import (
 
 var OutputProgress bool
 var ProgressBar *pb.ProgressBar
+var OutputJSON bool
 
 type Progress = string
 
@@ -364,8 +366,23 @@ func LimactlShellCmd(instName string) string {
 	return shellCmd
 }
 
+func printJSON(name string, key string, data interface{}) error {
+	doc := map[string]interface{}{key: data}
+	doc["name"] = name
+	out, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(out))
+	return nil
+}
+
 func ShowProgress(inst *store.Instance, progress Progress) {
 	if !OutputProgress {
+		return
+	}
+	if OutputJSON {
+		printJSON(inst.Name, "progress", progress)
 		return
 	}
 	var message string
@@ -384,8 +401,12 @@ const tmpl = `{{with string . "prefix"}}{{.}} {{end}}{{counters . }} {{bar . }} 
 // Keep the old progress bar showing, or clean on finish
 const keep = true
 
-func ShowRequirement(_ *store.Instance, req hostagentevents.Requirement) {
+func ShowRequirement(inst *store.Instance, req hostagentevents.Requirement) {
 	if !OutputProgress {
+		return
+	}
+	if OutputJSON {
+		printJSON(inst.Name, "requirement", req)
 		return
 	}
 	if ProgressBar == nil {
@@ -423,6 +444,9 @@ func ShowMessage(inst *store.Instance) error {
 	var b bytes.Buffer
 	if err := t.Execute(&b, data); err != nil {
 		return err
+	}
+	if OutputJSON {
+		return printJSON(inst.Name, "message", b.String())
 	}
 	scanner := bufio.NewScanner(&b)
 	logrus.Infof("Message from the instance %q:", inst.Name)

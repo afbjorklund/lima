@@ -35,6 +35,7 @@ func registerCreateFlags(cmd *cobra.Command, commentPrefix string) {
 	flags.String("name", "", commentPrefix+"override the instance name")
 	flags.Bool("list-templates", false, commentPrefix+"list available templates and exit")
 	flags.Bool("progress", false, "show progress")
+	flags.Bool("json", false, "JSONify progress")
 	editflags.RegisterCreate(cmd, commentPrefix)
 }
 
@@ -121,6 +122,10 @@ func loadOrCreateInstance(cmd *cobra.Command, args []string, createOnly bool) (*
 	}
 
 	start.OutputProgress, err = flags.GetBool("progress")
+	if err != nil {
+		return nil, err
+	}
+	start.OutputJSON, err = cmd.Flags().GetBool("json")
 	if err != nil {
 		return nil, err
 	}
