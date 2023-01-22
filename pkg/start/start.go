@@ -28,6 +28,7 @@ import (
 	"github.com/lima-vm/lima/pkg/fileutils"
 	hostagentevents "github.com/lima-vm/lima/pkg/hostagent/events"
 	"github.com/lima-vm/lima/pkg/limayaml"
+	"github.com/lima-vm/lima/pkg/progressbar"
 	"github.com/lima-vm/lima/pkg/store"
 	"github.com/lima-vm/lima/pkg/store/filenames"
 	"github.com/sirupsen/logrus"
@@ -114,6 +115,8 @@ func Prepare(ctx context.Context, inst *store.Instance) (*Prepared, error) {
 	if _, err := os.Stat(baseDisk); err == nil {
 		created = true
 	}
+	progressbar.OutputJSON = OutputJSON
+
 	if err := limaDriver.CreateDisk(); err != nil {
 		return nil, err
 	}

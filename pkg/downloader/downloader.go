@@ -499,6 +499,7 @@ func downloadHTTP(localPath, url, description string, expectedDigest digest.Dige
 	if err != nil {
 		return err
 	}
+	bar.Set("url", url)
 	if HideProgress {
 		hideBar(bar)
 	}
