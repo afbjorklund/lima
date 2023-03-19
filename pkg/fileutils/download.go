@@ -8,6 +8,7 @@ import (
 
 	"github.com/lima-vm/lima/pkg/downloader"
 	"github.com/lima-vm/lima/pkg/limayaml"
+	"github.com/lima-vm/lima/pkg/store/dirnames"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,8 +22,12 @@ func DownloadFile(ctx context.Context, dest string, f limayaml.File, decompress 
 	}
 	fields := logrus.Fields{"location": f.Location, "arch": f.Arch, "digest": f.Digest}
 	logrus.WithFields(fields).Infof("Attempting to download %s", description)
+	cacheDir, err := dirnames.LimaCacheDir()
+	if err != nil {
+		return "", err
+	}
 	res, err := downloader.Download(ctx, dest, f.Location,
-		downloader.WithCache(),
+		downloader.WithCacheDir(cacheDir),
 		downloader.WithDecompress(decompress),
 		downloader.WithDescription(fmt.Sprintf("%s (%s)", description, path.Base(f.Location))),
 		downloader.WithExpectedDigest(f.Digest),
@@ -44,8 +49,12 @@ func DownloadFile(ctx context.Context, dest string, f limayaml.File, decompress 
 
 // CachedFile checks if a file is in the cache, validating the digest if it is available. Returns path in cache.
 func CachedFile(f limayaml.File) (string, error) {
+	cacheDir, err := dirnames.LimaCacheDir()
+	if err != nil {
+		return "", err
+	}
 	res, err := downloader.Cached(f.Location,
-		downloader.WithCache(),
+		downloader.WithCacheDir(cacheDir),
 		downloader.WithExpectedDigest(f.Digest))
 	if err != nil {
 		return "", fmt.Errorf("cache did not contain %q: %w", f.Location, err)

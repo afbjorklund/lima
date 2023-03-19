@@ -2,8 +2,8 @@ package main
 
 import (
 	"os"
-	"path/filepath"
 
+	"github.com/lima-vm/lima/pkg/store/dirnames"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -21,11 +21,10 @@ func newPruneCommand() *cobra.Command {
 }
 
 func pruneAction(_ *cobra.Command, _ []string) error {
-	ucd, err := os.UserCacheDir()
+	cacheDir, err := dirnames.LimaCacheDir()
 	if err != nil {
 		return err
 	}
-	cacheDir := filepath.Join(ucd, "lima")
 	logrus.Infof("Pruning %q", cacheDir)
 	return os.RemoveAll(cacheDir)
 }

@@ -101,11 +101,13 @@ When using `vmType: vz` (Virtualization.framework), on boot, any qcow2 (default)
 
 `ls` will also only show the full/virtual size of the disks. To see the allocated space, `du -h disk_path` or `qemu-img info disk_path` can be used instead. See [#1405](https://github.com/lima-vm/lima/pull/1405) for more details.
 
-## Lima cache directory (`~/Library/Caches/lima`)
+## Lima cache directory (`${LIMA_CACHE}`)
 
-Currently hard-coded to `~/Library/Caches/lima` on macOS.
+Defaults to `~/Library/Caches/lima` on macOS.
 
-### Download cache (`~/Library/Caches/lima/download/by-url-sha256/<SHA256_OF_URL>`)
+Defaults to `$XDG_CACHE_HOME/lima` on Linux, usually `~/.cache/lima`.
+
+### Download cache (`${LIMA_CACHE}/download/by-url-sha256/<SHA256_OF_URL>`)
 
 The directory contains the following files:
 
@@ -118,6 +120,9 @@ The directory contains the following files:
 
 - `$LIMA_HOME`: The "Lima home directory" (see above).
   - Default : `~/.lima`
+
+- `$LIMA_CACHE`: The "Lima cache directory" (see above).
+  - Default : see above
 
 - `$LIMA_INSTANCE`: `lima ...` is expanded to `limactl shell ${LIMA_INSTANCE} ...`.
   - Default : `default`
