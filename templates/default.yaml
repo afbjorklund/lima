@@ -11,6 +11,10 @@
 # 🟢 Builtin default: "vz" (on macOS 13.5 and later), "qemu" (on others)
 vmType: null
 
+# OS: "Linux", "FreeBSD".
+# 🟢 Builtin default: "Linux"
+os: null
+
 # Arch: "default", "x86_64", "aarch64".
 # 🟢 Builtin default: "default" (corresponds to the host architecture)
 arch: null
