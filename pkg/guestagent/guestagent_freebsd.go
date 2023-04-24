@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lima-vm/lima/pkg/guestagent/api"
+	"github.com/lima-vm/lima/pkg/guestagent/sockstat"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -104,6 +105,27 @@ func (a *agent) Events(ctx context.Context, ch chan *api.Event) {
 
 func (a *agent) LocalPorts(_ context.Context) ([]*api.IPPort, error) {
 	var res []*api.IPPort
+	tcpParsed, err := sockstat.ParseOutput()
+	if err != nil {
+		return res, err
+	}
+
+	for _, f := range tcpParsed {
+		switch f.Kind {
+		case sockstat.TCP4, sockstat.TCP6:
+		default:
+			continue
+		}
+		if f.State == sockstat.Listen {
+			res = append(res,
+				&api.IPPort{
+					Ip:   f.IP.String(),
+					Port: int32(f.Port),
+					Protocol: "tcp",
+				})
+		}
+	}
+
 	return res, nil
 }
 
