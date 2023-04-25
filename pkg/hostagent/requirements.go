@@ -117,7 +117,7 @@ func (a *HostAgent) essentialRequirements() []requirement {
 	req = append(req,
 		requirement{
 			description: "ssh",
-			script: `#!/bin/bash
+			script: `#!/usr/bin/env bash
 true
 `,
 			debugHint: `Failed to SSH into the guest.
@@ -131,7 +131,7 @@ If any private key under ~/.ssh is protected with a passphrase, you need to have
 	req = append(req,
 		requirement{
 			description: "user session is ready for ssh",
-			script: `#!/bin/bash
+			script: `#!/usr/bin/env bash
 set -eux -o pipefail
 if ! timeout 30s bash -c "until sudo diff -q /run/lima-ssh-ready /mnt/lima-cidata/meta-data 2>/dev/null; do sleep 3; done"; then
 	echo >&2 "not ready to start persistent ssh session"
@@ -148,7 +148,7 @@ it must not be created until the session reset is done.
 	if *a.instConfig.MountType == limayaml.REVSSHFS && len(a.instConfig.Mounts) > 0 {
 		req = append(req, requirement{
 			description: "sshfs binary to be installed",
-			script: `#!/bin/bash
+			script: `#!/usr/bin/env bash
 set -eux -o pipefail
 if ! timeout 30s bash -c "until command -v sshfs; do sleep 3; done"; then
 	echo >&2 "sshfs is not installed yet"
@@ -163,7 +163,7 @@ A possible workaround is to run "apt-get install sshfs" in the guest.
 		})
 		req = append(req, requirement{
 			description: "fuse to \"allow_other\" as user",
-			script: `#!/bin/bash
+			script: `#!/usr/bin/env bash
 set -eux -o pipefail
 if ! timeout 30s bash -c "until sudo grep -q ^user_allow_other /etc/fuse*.conf; do sleep 3; done"; then
 	echo >&2 "/etc/fuse.conf (/etc/fuse3.conf) is not updated to contain \"user_allow_other\""
@@ -183,7 +183,7 @@ func (a *HostAgent) optionalRequirements() []requirement {
 			requirement{
 				description: "systemd must be available",
 				fatal:       true,
-				script: `#!/bin/bash
+				script: `#!/usr/bin/env bash
 set -eux -o pipefail
 if ! command -v systemctl 2>&1 >/dev/null; then
     echo >&2 "systemd is not available on this OS"
@@ -198,7 +198,7 @@ are set to 'false' in the config file.
 			},
 			requirement{
 				description: "containerd binaries to be installed",
-				script: `#!/bin/bash
+				script: `#!/usr/bin/env bash
 set -eux -o pipefail
 if ! timeout 30s bash -c "until command -v nerdctl || test -x ` + *a.instConfig.GuestInstallPrefix + `/bin/nerdctl; do sleep 3; done"; then
 	echo >&2 "nerdctl is not installed yet"
@@ -228,7 +228,7 @@ func (a *HostAgent) finalRequirements() []requirement {
 	req = append(req,
 		requirement{
 			description: "boot scripts must have finished",
-			script: `#!/bin/bash
+			script: `#!/usr/bin/env bash
 set -eux -o pipefail
 if ! timeout 30s bash -c "until sudo diff -q /run/lima-boot-done /mnt/lima-cidata/meta-data 2>/dev/null; do sleep 3; done"; then
 	echo >&2 "boot scripts have not finished"
