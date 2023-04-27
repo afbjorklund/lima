@@ -50,6 +50,7 @@ Container orchestration:
 - [`experimental/u7s`](./experimental/u7s.yaml): [Usernetes](https://github.com/rootless-containers/usernetes): Rootless Kubernetes
 
 Optional feature enablers:
+- [`experimental/freebsd.yaml`](./experimental/freebsd.yaml): [experimental] FreeBSD
 - [`experimental/vnc`](./experimental/vnc.yaml): [experimental] use vnc display and xorg server
 - [`experimental/alsa`](./experimental/alsa.yaml): [experimental] use alsa and default audio device
 
