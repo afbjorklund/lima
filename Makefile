@@ -118,6 +118,11 @@ manpages: _output/bin/limactl$(exe)
 	@mkdir -p _output/share/man/man1
 	$< generate-man _output/share/man/man1
 
+.PHONY: documentation
+documentation: _output/bin/limactl$(exe)
+	@mkdir -p _output/share/doc/lima/commands
+	$< generate-doc _output/share/doc/lima/commands
+
 .PHONY: diagrams
 diagrams: docs/lima-sequence-diagram.png
 docs/lima-sequence-diagram.png: docs/images/lima-sequence-diagram.puml

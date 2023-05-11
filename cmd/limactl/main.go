@@ -83,7 +83,7 @@ func newApp() *cobra.Command {
 			formatter.ForceColors = true
 			logrus.StandardLogger().SetFormatter(formatter)
 		}
-		if os.Geteuid() == 0 && cmd.Name() != "generate-man" {
+		if os.Geteuid() == 0 && cmd.Name() != "generate-man" && cmd.Name() != "generate-doc" {
 			return errors.New("must not run as the root")
 		}
 		// Make sure either $HOME or $LIMA_HOME is defined, so we don't need
@@ -112,6 +112,7 @@ func newApp() *cobra.Command {
 		newDiskCommand(),
 		newUsernetCommand(),
 		newGenManCommand(),
+		newGenDocCommand(),
 	)
 	return rootCmd
 }
