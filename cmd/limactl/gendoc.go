@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -74,6 +75,7 @@ and ’$LIMA_WORKDIR’.
 	return nil
 }
 
+//go:embed antimony.css
 var defaultstyle []byte
 
 func genHTMLTree(stylesheet string, dir string) error {
