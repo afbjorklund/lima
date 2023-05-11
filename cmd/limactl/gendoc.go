@@ -22,11 +22,16 @@ func newGenDocCommand() *cobra.Command {
 		Hidden: true,
 	}
 	gendocCommand.Flags().Bool("html", false, "HTML output")
+	gendocCommand.Flags().String("stylesheet", "", "HTML stylesheet")
 	return gendocCommand
 }
 
 func gendocAction(cmd *cobra.Command, args []string) error {
 	html, err := cmd.Flags().GetBool("html")
+	if err != nil {
+		return err
+	}
+	stylesheet, err := cmd.Flags().GetString("stylesheet")
 	if err != nil {
 		return err
 	}
@@ -62,15 +67,34 @@ and ’$LIMA_WORKDIR’.
 		return err
 	}
 	if html {
-		if err := genHTMLTree(dir); err != nil {
+		if err := genHTMLTree(stylesheet, dir); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func genHTMLTree(dir string) error {
+var defaultstyle []byte
+
+func genHTMLTree(stylesheet string, dir string) error {
 	re := regexp.MustCompile(`(<a href=")(.*)\.md(">)`)
+	var params blackfriday.HTMLRendererParameters
+	css := defaultstyle
+	if stylesheet != "" {
+		style, err := os.ReadFile(stylesheet)
+		if err != nil {
+			return err
+		}
+		css = style
+	}
+	if len(css) > 0 {
+		params.Flags |= blackfriday.CompletePage
+		if err := os.WriteFile(filepath.Join(dir, "blackfriday.css"), css, 0644); err != nil {
+			return err
+		}
+		params.CSS = "blackfriday.css"
+	}
+	renderer := blackfriday.NewHTMLRenderer(params)
 	return filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -81,11 +105,14 @@ func genHTMLTree(dir string) error {
 		if info.IsDir() {
 			return filepath.SkipDir
 		}
+		if !strings.HasSuffix(path, ".md") {
+			return nil
+		}
 		in, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		out := blackfriday.Run(in)
+		out := blackfriday.Run(in, blackfriday.WithRenderer(renderer))
 		path = strings.Replace(path, ".md", ".html", 1)
 		out = re.ReplaceAll(out, []byte("$1$2.html$3"))
 		err = os.WriteFile(path, out, 0644)
