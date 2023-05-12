@@ -29,10 +29,12 @@ func EvaluateExpression(expression string, content []byte) ([]byte, error) {
 	yqlib.InitExpressionParser()
 
 	indent := 2
-	encoder := yqlib.NewYamlEncoder(indent, false, yqlib.ConfiguredYamlPreferences)
+	prefs := yqlib.NewDefaultYamlPreferences()
+	prefs.CompactSequenceIndent = true
+	encoder := yqlib.NewYamlEncoder(indent, false, prefs)
 	out := new(bytes.Buffer)
 	printer := yqlib.NewPrinter(encoder, yqlib.NewSinglePrinterWriter(out))
-	decoder := yqlib.NewYamlDecoder(yqlib.ConfiguredYamlPreferences)
+	decoder := yqlib.NewYamlDecoder(prefs)
 
 	streamEvaluator := yqlib.NewStreamEvaluator()
 	files := []string{tmpYAMLPath}
