@@ -125,3 +125,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace (
+	github.com/mikefarah/yq/v4 => github.com/afbjorklund/yq/v4 v4.33.3-seq
+	gopkg.in/yaml.v3 => github.com/afbjorklund/yaml/v3 v3.0.1-kyaml
+)
