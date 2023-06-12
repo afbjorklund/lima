@@ -1,0 +1,20 @@
+# This example requires Lima v0.9.0 or later.
+
+# NOTE: EL8-based distros are known not to work on M1 chips: https://github.com/lima-vm/lima/issues/841
+# EL9-based distros are known to work.
+
+images:
+- location: "https://fbi.cdn.euro-linux.com/images/EL-8-cloudgeneric-2023-03-19.qcow2"
+  arch: "x86_64"
+  digest: "sha256:3216e167cd4f666fdc32805917c213dd64a8af7fd3bd01618765754ef2323f73"
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+firmware:
+  # Euro Linux 8 still requires legacyBIOS, while AlmaLinux 8 and Rocky Linux 8 do not.
+  legacyBIOS: true
+cpuType:
+  # Workaround for "vmx_write_mem: mmu_gva_to_gpa XXXXXXXXXXXXXXXX failed" on Intel Mac
+  # https://bugs.launchpad.net/qemu/+bug/1838390
+  x86_64: "Haswell-v4"

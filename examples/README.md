@@ -12,6 +12,8 @@ Distro:
 - [`centos-stream-8.yaml`](./centos-stream-8.yaml): CentOS Stream 8
 - [`centos-stream-9.yaml`](./centos-stream-9.yaml), `centos-stream.yaml`: CentOS Stream 9
 - [`debian.yaml`](./debian.yaml): ⭐Debian GNU/Linux
+- [`eurolinux-8.yaml`](./eurolinux-8.yaml): Euro Linux 8
+- [`eurolinux-9.yaml`](./eurolinux-9.yaml), `eurolinux.yaml`: Euro Linux 9
 - [`fedora.yaml`](./fedora.yaml): ⭐Fedora
 - [`opensuse.yaml`](./opensuse.yaml): ⭐openSUSE Leap
 - [`oraclelinux-8.yaml`](./oraclelinux-8.yaml): Oracle Linux 8
