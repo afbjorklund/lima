@@ -1,0 +1,182 @@
+# Deploy kubernetes via kubeadm.
+# $ limactl start ./k8s.yaml
+# $ limactl shell k8s sudo kubectl
+
+# It can be accessed from the host by exporting the kubeconfig file;
+# the ports are already forwarded automatically by lima:
+#
+# $ export KUBECONFIG=$(limactl list k8s --format 'unix://{{.Dir}}/copied-from-guest/kubeconfig.yaml')
+# $ kubectl get no
+# NAME       STATUS   ROLES                  AGE   VERSION
+# lima-k8s   Ready    control-plane,master   44s   v1.22.3
+
+# This example requires Lima v0.11.1 or later.
+images:
+# Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
+- location: "https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-20230523.0.x86_64.qcow2"
+  arch: "x86_64"
+  digest: "sha256:47dca0f014aff27bad5a4156f7ce3168fc339546d6e66bfaf52617a773f05bf0"
+- location: "https://cloud.centos.org/centos/9-stream/aarch64/images/CentOS-Stream-GenericCloud-9-20230523.0.aarch64.qcow2"
+  arch: "aarch64"
+  digest: "sha256:6c8566fe05b3541956e2ff0f72b41158b92751be9a4d68ac977e9d7fe22a6db6"
+# Fallback to the latest release image.
+# Hint: run `limactl prune` to invalidate the cache
+- location: "https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2"
+  arch: "x86_64"
+- location: "https://cloud.centos.org/centos/9-stream/aarch64/images/CentOS-Stream-GenericCloud-9-latest.aarch64.qcow2"
+  arch: "aarch64"
+
+# Mounts are disabled in this example, but can be enabled optionally.
+mounts: []
+firmware:
+  # CentOS Stream 9 still requires legacyBIOS, while AlmaLinux 9 and Rocky Linux 9 do not.
+  legacyBIOS: true
+containerd:
+  system: false
+  user: false
+provision:
+# See <https://cri-o.io/> and <https://build.opensuse.org/project/show/devel:kubic:libcontainers:stable>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v crio >/dev/null 2>&1 && exit 0
+    OS="CentOS_9_Stream"
+    VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt | sed -e 's/v//' | cut -d'.' -f1-2)
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/devel:/kubic:/libcontainers:/stable.repo
+    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo
+    yum install -y cri-o
+    systemctl enable --now crio
+# See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v kubeadm >/dev/null 2>&1 && exit 0
+    # Install and configure prerequisites
+    cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
+    overlay
+    br_netfilter
+    EOF
+    modprobe overlay
+    modprobe br_netfilter
+    cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
+    net.bridge.bridge-nf-call-iptables  = 1
+    net.ipv4.ip_forward                 = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    EOF
+    sysctl --system
+    # Installing kubeadm, kubelet and kubectl
+    cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+    [kubernetes]
+    name=Kubernetes
+    baseurl=https://yum.k8s.io/repos/kubernetes-el7-\$basearch
+    enabled=1
+    gpgcheck=1
+    gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+    exclude=kubelet kubeadm kubectl
+    EOF
+    # Set SELinux in permissive mode (effectively disabling it)
+    setenforce 0
+    sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+    # cri-tools
+    yum install -y cri-tools --disableexcludes=kubernetes
+    cat  <<EOF | sudo tee /etc/crictl.yaml
+    runtime-endpoint: unix:///run/crio/crio.sock
+    EOF
+    # cni-plugins
+    yum install -y kubernetes-cni --disableexcludes=kubernetes --excludepkgs "kubelet-1.1*"
+    rm -f /etc/cni/net.d/*.conf*
+    yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+    systemctl enable --now kubelet
+# See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    test -e /etc/crio/crio.conf.d && exit 0
+    mkdir -p /etc/crio/crio.conf.d
+    # Configuring the systemd cgroup driver
+    cat <<EOF >/etc/crio/crio.conf.d/02-cgroup-manager.conf
+    [crio.runtime]
+    cgroup_manager = "systemd"
+    EOF
+    # Overriding the sandbox (pause) image
+    cat <<EOF >/etc/crio/crio.conf.d/02-pause-image.conf
+    [crio.image]
+    pause_image="$(kubeadm config images list | grep pause | sort -r | head -n1)"
+    EOF
+    systemctl restart crio
+# See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    test -e /etc/kubernetes/admin.conf && exit 0
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubeadm config images list
+    kubeadm config images pull --cri-socket=unix:///run/crio/crio.sock
+    # Initializing your control-plane node
+    cat <<EOF >kubeadm-config.yaml
+    kind: InitConfiguration
+    apiVersion: kubeadm.k8s.io/v1beta3
+    nodeRegistration:
+      criSocket: unix:///run/crio/crio.sock
+    ---
+    kind: ClusterConfiguration
+    apiVersion: kubeadm.k8s.io/v1beta3
+    apiServer:
+      certSANs: # --apiserver-cert-extra-sans
+      - "127.0.0.1"
+    networking:
+      podSubnet: "10.244.0.0/16" # --pod-network-cidr
+    ---
+    kind: KubeletConfiguration
+    apiVersion: kubelet.config.k8s.io/v1beta1
+    cgroupDriver: systemd
+    EOF
+    kubeadm init --config kubeadm-config.yaml
+    # Installing a Pod network add-on
+    kubectl apply -f https://github.com/flannel-io/flannel/releases/download/v0.21.4/kube-flannel.yml
+    # Control plane node isolation
+    kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+    sed -e "s/${LIMA_CIDATA_SLIRP_IP_ADDRESS:-192.168.5.15}/127.0.0.1/" -i $KUBECONFIG
+    mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
+probes:
+- description: "kubeadm to be installed"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v kubeadm >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "kubeadm is not installed yet"
+      exit 1
+    fi
+  hint: |
+    See "/var/log/cloud-init-output.log". in the guest
+- description: "kubeadm to be completed"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 300s bash -c "until test -f /etc/kubernetes/admin.conf; do sleep 3; done"; then
+      echo >&2 "k8s is not running yet"
+      exit 1
+    fi
+  hint: |
+    The k8s kubeconfig file has not yet been created.
+- description: "kubernetes cluster to be running"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 300s bash -c "until sudo kubectl version >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "kubernetes cluster is not up and running yet"
+      exit 1
+    fi
+copyToHost:
+- guest: "/etc/kubernetes/admin.conf"
+  host: "{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+message: |
+  To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
+  ------
+  export KUBECONFIG="{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  kubectl ...
+  ------
