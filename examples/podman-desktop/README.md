@@ -14,9 +14,9 @@ Empty OS templates:
 
 - [fedora](../fedora.yaml) (base for podman)
 
-- [centos-stream](../centos-stream.yaml)
+- [centos-stream](../centos-stream-9.yaml)
 
-- [almalinux](../almalinux.yaml)
+- [almalinux](../almalinux-9.yaml)
 
 Example with running both Docker Engine and Podman Engine:
 - [both](./both.yaml)
