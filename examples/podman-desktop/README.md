@@ -18,6 +18,9 @@ Empty OS templates:
 
 - [almalinux](../almalinux-9.yaml)
 
+Example with running both Podman and Kubernetes (CRI-O):
+- [crio](./crio.yaml)
+
 Example with running both Docker Engine and Podman Engine:
 - [both](./both.yaml)
 
