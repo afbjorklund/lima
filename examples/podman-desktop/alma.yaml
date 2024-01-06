@@ -1,0 +1,65 @@
+# This template requires Lima v0.11.1 or later.
+
+images:
+- location: "https://repo.almalinux.org/almalinux/9.3/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.3-20231113.x86_64.qcow2"
+  arch: "x86_64"
+  digest: "sha256:6bbd060c971fd827a544c7e5e991a7d9e44460a449d2d058a0bb1290dec5a114"
+- location: "https://repo.almalinux.org/almalinux/9.3/cloud/aarch64/images/AlmaLinux-9-GenericCloud-9.3-20231113.aarch64.qcow2"
+  arch: "aarch64"
+  digest: "sha256:a064715bc755346d5a8e1a4c6b1b7abffe4de03f1b0584942d5483ed32aafd67"
+# Fallback to the latest release image.
+# Hint: run `limactl prune` to invalidate the cache
+- location: "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+  arch: "x86_64"
+- location: "https://repo.almalinux.org/almalinux/9/cloud/aarch64/images/AlmaLinux-9-GenericCloud-latest.aarch64.qcow2"
+  arch: "aarch64"
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+
+containerd:
+  system: false
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v podman >/dev/null 2>&1 && exit 0
+    dnf -y install podman
+- mode: user
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    systemctl --user enable --now podman.socket
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    rpm -q cockpit-podman >/dev/null 2>&1 && exit 0
+    dnf -y install cockpit-podman
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    systemctl --system enable --now cockpit.socket
+probes:
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v podman >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "podman is not installed yet"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log" in the guest
+portForwards:
+- guestSocket: "/run/user/{{.UID}}/podman/podman.sock"
+  hostSocket: "{{.Dir}}/sock/podman.sock"
+message: |
+  To run `podman` on the host (assumes podman-remote is installed), run the following commands:
+  ------
+  export CONTAINER_HOST="unix://{{.Dir}}/sock/podman.sock"
+  podman{{if eq .HostOS "linux"}} --remote{{end}} run quay.io/podman/hello
+  ------
+  To connect to the web console, set a password using shell and visit <https://localhost:9090>
