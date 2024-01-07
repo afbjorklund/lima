@@ -99,16 +99,18 @@ provision:
     grep "version = 2" /etc/containerd/config.toml || exit 1
     # Configuring the systemd cgroup driver
     # Overriding the sandbox (pause) image
-    cat <<EOF >>/etc/containerd/config.toml
-      [plugins]
-        [plugins."io.containerd.grpc.v1.cri"]
-          sandbox_image = "$(kubeadm config images list | grep pause | sort -r | head -n1)"
-          [plugins."io.containerd.grpc.v1.cri".containerd]
-            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-                runtime_type = "io.containerd.runc.v2"
-                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-                  SystemdCgroup = true
+    cat <<EOF >/etc/containerd/config.toml
+    version = 2
+
+    [plugins]
+      [plugins."io.containerd.grpc.v1.cri"]
+        sandbox_image = "$(kubeadm config images list | grep pause | sort -r | head -n1)"
+        [plugins."io.containerd.grpc.v1.cri".containerd]
+          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+              runtime_type = "io.containerd.runc.v2"
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+                SystemdCgroup = true
     EOF
     systemctl restart containerd
 # See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/>
