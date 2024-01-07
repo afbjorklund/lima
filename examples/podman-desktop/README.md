@@ -18,6 +18,9 @@ Empty OS templates:
 
 - [almalinux](../almalinux-9.yaml)
 
+Example with running both Docker and Kubernetes (containerd):
+- [k8sd](./k8sd.yaml)
+
 Example with running both Podman and Kubernetes (CRI-O):
 - [crio](./crio.yaml)
 

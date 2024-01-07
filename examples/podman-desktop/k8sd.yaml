@@ -1,0 +1,210 @@
+# This template requires Lima v0.8.0 or later
+images:
+- location: "https://download.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/x86_64/images/Fedora-Cloud-Base-39-1.5.x86_64.qcow2"
+  arch: "x86_64"
+  digest: "sha256:ab5be5058c5c839528a7d6373934e0ce5ad6c8f80bd71ed3390032027da52f37"
+- location: "https://download.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/aarch64/images/Fedora-Cloud-Base-39-1.5.aarch64.qcow2"
+  arch: "aarch64"
+  digest: "sha256:765996d5b77481ca02d0ac06405641bf134ac920cfc1e60d981c64d7971162dc"
+
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+containerd:
+  system: false
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v docker >/dev/null 2>&1 && exit 0
+    if [ ! -e /etc/systemd/system/docker.socket.d/override.conf ]; then
+      mkdir -p /etc/systemd/system/docker.socket.d
+      cat <<-EOF >/etc/systemd/system/docker.socket.d/override.conf
+      [Socket]
+      SocketUser=${LIMA_CIDATA_USER}
+    EOF
+    fi
+    dnf -y install moby-engine containerd runc
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    systemctl --system enable --now docker.socket
+# See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v kubeadm >/dev/null 2>&1 && exit 0
+    # Install and configure prerequisites
+    cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
+    overlay
+    br_netfilter
+    EOF
+    modprobe overlay
+    modprobe br_netfilter
+    cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
+    net.bridge.bridge-nf-call-iptables  = 1
+    net.ipv4.ip_forward                 = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    EOF
+    sysctl --system
+    # Disable swap
+    dnf remove -y zram-generator zram-generator-defaults
+    swapoff -a
+    # Set SELinux in permissive mode (effectively disabling it)
+    setenforce 0
+    sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+    # Installing a container runtime
+    mkdir -p /etc/docker
+    cat <<EOF | sudo tee /etc/docker/daemon.json
+    {
+      "features": {
+        "containerd-snapshotter": true
+      }
+    }
+    EOF
+    systemctl try-restart docker.service
+    systemctl enable --now containerd
+    # Installing kubeadm, kubelet and kubectl
+    VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt | sed -e 's/v//' | cut -d'.' -f1-2)
+    cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+    [kubernetes]
+    name=Kubernetes
+    baseurl=https://pkgs.k8s.io/core:/stable:/v${VERSION}/rpm/
+    enabled=1
+    gpgcheck=1
+    gpgkey=https://pkgs.k8s.io/core:/stable:/v${VERSION}/rpm/repodata/repomd.xml.key
+    exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+    EOF
+    # cri-tools
+    yum install -y cri-tools --disableexcludes=kubernetes
+    cat  <<EOF | sudo tee /etc/crictl.yaml
+    runtime-endpoint: unix:///run/containerd/containerd.sock
+    EOF
+    # cni-plugins
+    yum install -y kubernetes-cni --disableexcludes=kubernetes
+    rm -f /etc/cni/net.d/*.conf*
+    yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+    systemctl enable --now kubelet
+# See <https://kubernetes.io/docs/setup/production-environment/container-runtimes/>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    grep SystemdCgroup /etc/containerd/config.toml && exit 0
+    grep "version = 2" /etc/containerd/config.toml || exit 1
+    # Configuring the systemd cgroup driver
+    # Overriding the sandbox (pause) image
+    cat <<EOF >>/etc/containerd/config.toml
+      [plugins]
+        [plugins."io.containerd.grpc.v1.cri"]
+          sandbox_image = "$(kubeadm config images list | grep pause | sort -r | head -n1)"
+          [plugins."io.containerd.grpc.v1.cri".containerd]
+            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+                runtime_type = "io.containerd.runc.v2"
+                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+                  SystemdCgroup = true
+    EOF
+    systemctl restart containerd
+# See <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/>
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    test -e /etc/kubernetes/admin.conf && exit 0
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubeadm config images list
+    kubeadm config images pull --cri-socket=unix:///run/containerd/containerd.sock
+    # Initializing your control-plane node
+    cat <<EOF >kubeadm-config.yaml
+    kind: InitConfiguration
+    apiVersion: kubeadm.k8s.io/v1beta3
+    nodeRegistration:
+      criSocket: unix:///run/containerd/containerd.sock
+    ---
+    kind: ClusterConfiguration
+    apiVersion: kubeadm.k8s.io/v1beta3
+    apiServer:
+      certSANs: # --apiserver-cert-extra-sans
+      - "127.0.0.1"
+    networking:
+      podSubnet: "10.244.0.0/16" # --pod-network-cidr
+    ---
+    kind: KubeletConfiguration
+    apiVersion: kubelet.config.k8s.io/v1beta1
+    cgroupDriver: systemd
+    EOF
+    kubeadm init --config kubeadm-config.yaml
+    # Installing a Pod network add-on
+    kubectl apply -f https://github.com/flannel-io/flannel/releases/download/v0.22.1/kube-flannel.yml
+    # Control plane node isolation
+    kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+    # Replace the server address with localhost, so that it works also from the host
+    sed -e "/server:/ s|https://.*:\([0-9]*\)$|https://127.0.0.1:\1|" -i $KUBECONFIG
+    mkdir -p ${HOME:-/root}/.kube && cp -f $KUBECONFIG ${HOME:-/root}/.kube/config
+probes:
+- description: "docker to be installed"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "docker is not installed yet"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log" in the guest
+- description: "kubeadm to be installed"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v kubeadm >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "kubeadm is not installed yet"
+      exit 1
+    fi
+  hint: |
+    See "/var/log/cloud-init-output.log". in the guest
+- description: "kubeadm to be completed"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 300s bash -c "until test -f /etc/kubernetes/admin.conf; do sleep 3; done"; then
+      echo >&2 "k8s is not running yet"
+      exit 1
+    fi
+  hint: |
+    The k8s kubeconfig file has not yet been created.
+- description: "kubernetes cluster to be running"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 300s bash -c "until sudo kubectl version >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "kubernetes cluster is not up and running yet"
+      exit 1
+    fi
+- description: "coredns deployment to be running"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    sudo kubectl wait -n kube-system --timeout=180s --for=condition=available deploy coredns
+portForwards:
+- guestSocket: "/var/run/docker.sock"
+  hostSocket: "{{.Dir}}/sock/docker.sock"
+copyToHost:
+- guest: "/etc/kubernetes/admin.conf"
+  host: "{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  deleteOnStop: true
+message: |
+  To run `docker` on the host (assumes docker-cli is installed), run the following commands:
+  ------
+  export DOCKER_HOST="unix://{{.Dir}}/sock/docker.sock"
+  docker ...
+  ------
+  To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
+  ------
+  export KUBECONFIG="{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  kubectl ...
+  ------
