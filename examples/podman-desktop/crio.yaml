@@ -76,6 +76,7 @@ provision:
     # Conflicts: conmon, containers-common, crun
     cd /var/tmp
     yum download cri-o.$(rpm --eval '%{_arch}')
+    mv /usr/bin/conmon /usr/libexec/podman/
     rpm -Uv --nodeps --replacefiles cri-o*.rpm
     systemctl enable --now crio
     # Installing kubeadm, kubelet and kubectl
