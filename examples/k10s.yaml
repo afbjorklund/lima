@@ -1,0 +1,120 @@
+# Cannot use Ubuntu 14.04 LTS, because it uses sysvinit not systemd.
+images:
+- location: "http://cloud-images-archive.ubuntu.com/releases/vivid/release-20160203/ubuntu-15.04-server-cloudimg-amd64-disk1.img"
+  arch: "x86_64"
+  digest: "sha256:a348500d04de3352af3944e9dae99a08d60091221e1370941b93bd7a27971568"
+
+# Mounts are disabled in this template, but can be enabled optionally.
+mounts: []
+containerd:
+  system: false
+  user: false
+firmware:
+  legacyBIOS: true
+
+# <https://github.com/spurin/kubernetes-v1.0-lab/blob/main/tutorial.md>
+provision:
+- mode: boot
+  script: |
+   sed -i 's|http://archive.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' /etc/cloud/cloud.cfg
+   sed -i 's|http://security.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' /etc/cloud/cloud.cfg
+- mode: boot
+  script: |
+   printf '#!/bin/sh\nif [ "$2" = "enable" -a "$3" = "--now" ]; then /bin/systemctl $1 enable $4; /bin/systemctl $1 start $4; else /bin/systemctl "$@"; fi\n' >/usr/local/bin/systemctl
+   chmod 755 /usr/local/bin/systemctl
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v docker >/dev/null 2>&1 && exit 0
+    apt-get install -y docker.io
+    systemctl restart docker.service
+    usermod -aG docker {{.User}}
+- mode: system
+  script: |
+    #!/bin/bash
+    command -v etcd >/dev/null 2>&1 && exit 0
+    curl -L https://github.com/coreos/etcd/releases/download/v2.0.12/etcd-v2.0.12-linux-amd64.tar.gz -o etcd-v2.0.12-linux-amd64.tar.gz
+    tar xzvf etcd-v2.0.12-linux-amd64.tar.gz
+    sudo install etcd-v2.0.12-linux-amd64/etcd /usr/local/bin
+- mode: system
+  script: |
+    #!/bin/bash
+    etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://localhost:2379 &> /var/log/etcd.log &
+- mode: system
+  script: |
+    #!/bin/bash
+    command -v kubelet >/dev/null 2>&1 && exit 0
+    curl -L https://github.com/kubernetes/kubernetes/releases/download/v1.0.0/kubernetes.tar.gz -o kubernetes.tar.gz
+    tar zxvf kubernetes.tar.gz
+    tar zxvf kubernetes/server/kubernetes-server-linux-amd64.tar.gz
+    sudo install kubernetes/platforms/linux/amd64/kubectl /usr/local/bin
+    sudo install kubernetes/server/bin/kube-apiserver /usr/local/bin
+    sudo install kubernetes/server/bin/kube-controller-manager /usr/local/bin
+    sudo install kubernetes/server/bin/kube-proxy /usr/local/bin
+    sudo install kubernetes/server/bin/kube-scheduler /usr/local/bin
+    sudo install kubernetes/server/bin/kubelet /usr/local/bin
+- mode: system
+  script: |
+    #!/bin/bash
+    kube-apiserver --etcd-servers=http://localhost:2379 --service-cluster-ip-range=10.0.0.0/16 --bind-address=0.0.0.0 --insecure-bind-address=0.0.0.0 &> /var/log/kube-apiserver.log &
+    kubelet --api-servers=http://localhost:8080 --pod-infra-container-image="registry.k8s.io/pause:0.8.0" &> /var/log/kubelet.log &
+    kube-scheduler --master=http://localhost:8080 &> /var/log/kube-scheduler.log &
+    kube-controller-manager --master=http://localhost:8080 &> /var/log/kube-controller-manager.log &
+    kube-proxy --master=http://localhost:8080 &> /var/log/kube-proxy.log &
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    export KUBECONFIG=/root/.kube/config
+    kubectl config set-cluster k8s-v1.0 --server=http://localhost:8080
+    kubectl config set-context k8s-v1.0 --cluster=k8s-v1.0
+    kubectl config use-context k8s-v1.0
+    kubectl config view
+    mkdir -p {{.Home}}/.kube
+    cp -f $KUBECONFIG {{.Home}}/.kube/config
+    chown -R {{.User}} {{.Home}}/.kube
+probes:
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "docker is not installed yet"
+      exit 1
+    fi
+    if ! timeout 30s bash -c "until pgrep docker; do sleep 3; done"; then # NOTE: docker -d
+      echo >&2 "dockerd is not running"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log". in the guest
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 300s bash -c "until test -f ~/.kube/config; do sleep 3; done"; then
+      echo >&2 "k8s is not running yet"
+      exit 1
+    fi
+    if ! timeout 300s bash -c "until kubectl version >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "kubernetes cluster is not up and running yet"
+      exit 1
+    fi
+  hint: |
+    The k8s kubeconfig file has not yet been created.
+portForwards:
+- guestSocket: "/var/run/docker.sock"
+  hostSocket: "{{.Dir}}/sock/docker.sock"
+copyToHost:
+- guest: "{{.Home}}/.kube/config"
+  host: "{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  deleteOnStop: true
+message: |
+  To run `docker` on the host (assumes docker-cli is installed), run the following commands:
+  ------
+  export DOCKER_HOST="unix://{{.Dir}}/sock/docker.sock"
+  docker ...
+  ------
+  To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
+  ------
+  export KUBECONFIG="{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  kubectl ...
+  ------
