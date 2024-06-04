@@ -1,0 +1,56 @@
+--- k10s.yaml	2024-06-04 10:33:44.985533873 +0200
++++ k14s.yaml	2024-06-04 10:20:20.567619549 +0200
+@@ -3,6 +3,9 @@
+ - location: "http://cloud-images-archive.ubuntu.com/releases/vivid/release-20160203/ubuntu-15.04-server-cloudimg-amd64-uefi1.img"
+   arch: "x86_64"
+   digest: "sha256:8e025a2c8e9e4eaae00b6b6a8688c927f3728d72d0b47dd0c370e25817ad678f"
++- location: "http://cloud-images-archive.ubuntu.com/releases/vivid/release-20160203/ubuntu-15.04-server-cloudimg-arm64-uefi1.img"
++  arch: "aarch64"
++  digest: "sha256:2a33342c00505394d972212adbb01cbf8b1dd7d77956de366091360ddd4c7c6b"
+ 
+ # Mounts are disabled in this template, but can be enabled optionally.
+ mounts: []
+@@ -32,8 +35,11 @@
+   script: |
+     #!/bin/bash
+     command -v etcd >/dev/null 2>&1 && exit 0
+-    version=2.0.12
+-    arch=amd64
++    version=2.2.1
++    case $(uname -m) in
++      x86_64)   arch=amd64;;
++      aarch64)  arch=arm64;;
++    esac
+     curl -L https://github.com/coreos/etcd/releases/download/v$version/etcd-v$version-linux-$arch.tar.gz -O
+     tar xzvf etcd-v$version-linux-$arch.tar.gz
+     sudo install etcd-v$version-linux-$arch/etcd /usr/local/bin
+@@ -45,12 +51,14 @@
+   script: |
+     #!/bin/bash
+     command -v kubelet >/dev/null 2>&1 && exit 0
+-    version=1.0.0
+-    arch=amd64
+-    curl -L https://github.com/kubernetes/kubernetes/releases/download/v$version/kubernetes.tar.gz -o kubernetes.tar.gz
+-    tar zxvf kubernetes.tar.gz
+-    tar zxvf kubernetes/server/kubernetes-server-linux-$arch.tar.gz
+-    sudo install kubernetes/platforms/linux/$arch/kubectl /usr/local/bin
++    version=1.4.0
++    case $(uname -m) in
++      x86_64)   arch=amd64;;
++      aarch64)  arch=arm64;;
++    esac
++    curl -L https://storage.googleapis.com/kubernetes-release/release/v$version/kubernetes-server-linux-$arch.tar.gz -O
++    tar zxvf kubernetes-server-linux-$arch.tar.gz
++    sudo install kubernetes/server/bin/kubectl /usr/local/bin
+     sudo install kubernetes/server/bin/kube-apiserver /usr/local/bin
+     sudo install kubernetes/server/bin/kube-controller-manager /usr/local/bin
+     sudo install kubernetes/server/bin/kube-proxy /usr/local/bin
+@@ -69,7 +77,7 @@
+     #!/bin/bash
+     set -eux -o pipefail
+     export KUBECONFIG=/root/.kube/config
+-    name=k8s-v1.0
++    name=k8s-v1.4
+     kubectl config set-cluster $name --server=http://localhost:8080
+     kubectl config set-context $name --cluster=$name
+     kubectl config use-context $name

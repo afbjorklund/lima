@@ -1,0 +1,68 @@
+diff --git a/examples/k10s.yaml b/examples/k10s.yaml
+index b88f6148..04a87736 100644
+--- a/examples/k10s.yaml
++++ b/examples/k10s.yaml
+@@ -1,16 +1,14 @@
+ # Cannot use Ubuntu 14.04 LTS, because it uses sysvinit not systemd.
+ images:
+-- location: "http://cloud-images-archive.ubuntu.com/releases/vivid/release-20160203/ubuntu-15.04-server-cloudimg-amd64-disk1.img"
++- location: "http://cloud-images-archive.ubuntu.com/releases/vivid/release-20160203/ubuntu-15.04-server-cloudimg-amd64-uefi1.img"
+   arch: "x86_64"
+-  digest: "sha256:a348500d04de3352af3944e9dae99a08d60091221e1370941b93bd7a27971568"
++  digest: "sha256:8e025a2c8e9e4eaae00b6b6a8688c927f3728d72d0b47dd0c370e25817ad678f"
+ 
+ # Mounts are disabled in this template, but can be enabled optionally.
+ mounts: []
+ containerd:
+   system: false
+   user: false
+-firmware:
+-  legacyBIOS: true
+ 
+ # <https://github.com/spurin/kubernetes-v1.0-lab/blob/main/tutorial.md>
+ provision:
+@@ -34,9 +32,11 @@ provision:
+   script: |
+     #!/bin/bash
+     command -v etcd >/dev/null 2>&1 && exit 0
+-    curl -L https://github.com/coreos/etcd/releases/download/v2.0.12/etcd-v2.0.12-linux-amd64.tar.gz -o etcd-v2.0.12-linux-amd64.tar.gz
+-    tar xzvf etcd-v2.0.12-linux-amd64.tar.gz
+-    sudo install etcd-v2.0.12-linux-amd64/etcd /usr/local/bin
++    version=2.0.12
++    arch=amd64
++    curl -L https://github.com/coreos/etcd/releases/download/v$version/etcd-v$version-linux-$arch.tar.gz -O
++    tar xzvf etcd-v$version-linux-$arch.tar.gz
++    sudo install etcd-v$version-linux-$arch/etcd /usr/local/bin
+ - mode: system
+   script: |
+     #!/bin/bash
+@@ -45,10 +45,12 @@ provision:
+   script: |
+     #!/bin/bash
+     command -v kubelet >/dev/null 2>&1 && exit 0
+-    curl -L https://github.com/kubernetes/kubernetes/releases/download/v1.0.0/kubernetes.tar.gz -o kubernetes.tar.gz
++    version=1.0.0
++    arch=amd64
++    curl -L https://github.com/kubernetes/kubernetes/releases/download/v$version/kubernetes.tar.gz -o kubernetes.tar.gz
+     tar zxvf kubernetes.tar.gz
+-    tar zxvf kubernetes/server/kubernetes-server-linux-amd64.tar.gz
+-    sudo install kubernetes/platforms/linux/amd64/kubectl /usr/local/bin
++    tar zxvf kubernetes/server/kubernetes-server-linux-$arch.tar.gz
++    sudo install kubernetes/platforms/linux/$arch/kubectl /usr/local/bin
+     sudo install kubernetes/server/bin/kube-apiserver /usr/local/bin
+     sudo install kubernetes/server/bin/kube-controller-manager /usr/local/bin
+     sudo install kubernetes/server/bin/kube-proxy /usr/local/bin
+@@ -67,9 +69,10 @@ provision:
+     #!/bin/bash
+     set -eux -o pipefail
+     export KUBECONFIG=/root/.kube/config
+-    kubectl config set-cluster k8s-v1.0 --server=http://localhost:8080
+-    kubectl config set-context k8s-v1.0 --cluster=k8s-v1.0
+-    kubectl config use-context k8s-v1.0
++    name=k8s-v1.0
++    kubectl config set-cluster $name --server=http://localhost:8080
++    kubectl config set-context $name --cluster=$name
++    kubectl config use-context $name
+     kubectl config view
+     mkdir -p {{.Home}}/.kube
+     cp -f $KUBECONFIG {{.Home}}/.kube/config
