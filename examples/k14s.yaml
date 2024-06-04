@@ -1,11 +1,10 @@
-# Cannot use Ubuntu 14.04 LTS, because it uses sysvinit not systemd.
 images:
-- location: "http://cloud-images-archive.ubuntu.com/releases/vivid/release-20160203/ubuntu-15.04-server-cloudimg-amd64-uefi1.img"
+- location: "https://cloud-images.ubuntu.com/xenial/20211001/xenial-server-cloudimg-amd64-uefi1.img"
   arch: "x86_64"
-  digest: "sha256:8e025a2c8e9e4eaae00b6b6a8688c927f3728d72d0b47dd0c370e25817ad678f"
-- location: "http://cloud-images-archive.ubuntu.com/releases/vivid/release-20160203/ubuntu-15.04-server-cloudimg-arm64-uefi1.img"
+  digest: "sha256:65bb42c0d2e039aec5168a861b2c37deb641e9ce9ba1a79a90c60b6c34ce907f"
+- location: "https://cloud-images.ubuntu.com/xenial/20211001/xenial-server-cloudimg-arm64-uefi1.img"
   arch: "aarch64"
-  digest: "sha256:2a33342c00505394d972212adbb01cbf8b1dd7d77956de366091360ddd4c7c6b"
+  digest: "sha256:282ff9bd3cae921470f27f626eb7deaf1da2cea24dd2e96102b0b764cd5019f2"
 
 # Mounts are disabled in this template, but can be enabled optionally.
 mounts: []
@@ -15,10 +14,6 @@ containerd:
 
 # <https://github.com/spurin/kubernetes-v1.0-lab/blob/main/tutorial.md>
 provision:
-- mode: boot
-  script: |
-   sed -i 's|http://archive.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' /etc/cloud/cloud.cfg
-   sed -i 's|http://security.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' /etc/cloud/cloud.cfg
 - mode: boot
   script: |
    printf '#!/bin/sh\nif [ "$2" = "enable" -a "$3" = "--now" ]; then /bin/systemctl $1 enable $4; /bin/systemctl $1 start $4; else /bin/systemctl "$@"; fi\n' >/usr/local/bin/systemctl
