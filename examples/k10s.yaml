@@ -34,9 +34,11 @@ provision:
   script: |
     #!/bin/bash
     command -v etcd >/dev/null 2>&1 && exit 0
-    curl -L https://github.com/coreos/etcd/releases/download/v2.0.12/etcd-v2.0.12-linux-amd64.tar.gz -o etcd-v2.0.12-linux-amd64.tar.gz
-    tar xzvf etcd-v2.0.12-linux-amd64.tar.gz
-    sudo install etcd-v2.0.12-linux-amd64/etcd /usr/local/bin
+    version=2.0.12
+    arch=amd64
+    curl -L https://github.com/coreos/etcd/releases/download/v$version/etcd-v$version-linux-$arch.tar.gz -O
+    tar xzvf etcd-v$version-linux-$arch.tar.gz
+    sudo install etcd-v$version-linux-$arch/etcd /usr/local/bin
 - mode: system
   script: |
     #!/bin/bash
@@ -45,10 +47,12 @@ provision:
   script: |
     #!/bin/bash
     command -v kubelet >/dev/null 2>&1 && exit 0
-    curl -L https://github.com/kubernetes/kubernetes/releases/download/v1.0.0/kubernetes.tar.gz -o kubernetes.tar.gz
+    version=1.0.0
+    arch=amd64
+    curl -L https://github.com/kubernetes/kubernetes/releases/download/v$version/kubernetes.tar.gz -o kubernetes.tar.gz
     tar zxvf kubernetes.tar.gz
-    tar zxvf kubernetes/server/kubernetes-server-linux-amd64.tar.gz
-    sudo install kubernetes/platforms/linux/amd64/kubectl /usr/local/bin
+    tar zxvf kubernetes/server/kubernetes-server-linux-$arch.tar.gz
+    sudo install kubernetes/platforms/linux/$arch/kubectl /usr/local/bin
     sudo install kubernetes/server/bin/kube-apiserver /usr/local/bin
     sudo install kubernetes/server/bin/kube-controller-manager /usr/local/bin
     sudo install kubernetes/server/bin/kube-proxy /usr/local/bin
@@ -67,9 +71,10 @@ provision:
     #!/bin/bash
     set -eux -o pipefail
     export KUBECONFIG=/root/.kube/config
-    kubectl config set-cluster k8s-v1.0 --server=http://localhost:8080
-    kubectl config set-context k8s-v1.0 --cluster=k8s-v1.0
-    kubectl config use-context k8s-v1.0
+    name=k8s-v1.0
+    kubectl config set-cluster $name --server=http://localhost:8080
+    kubectl config set-context $name --cluster=$name
+    kubectl config use-context $name
     kubectl config view
     mkdir -p {{.Home}}/.kube
     cp -f $KUBECONFIG {{.Home}}/.kube/config
