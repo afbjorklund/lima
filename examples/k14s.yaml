@@ -35,9 +35,15 @@ provision:
       x86_64)   arch=amd64;;
       aarch64)  arch=arm64;;
     esac
-    curl -L https://github.com/coreos/etcd/releases/download/v$version/etcd-v$version-linux-$arch.tar.gz -O
-    tar xzvf etcd-v$version-linux-$arch.tar.gz
-    sudo install etcd-v$version-linux-$arch/etcd /usr/local/bin
+    if [ $arch = "arm64" ]; then
+      sudo docker pull gcr.io/google_containers/etcd-arm:$version # the arm64 image is missing in action
+      sudo docker run --rm gcr.io/google_containers/etcd-arm:$version cat /usr/local/bin/etcd >etcd
+      sudo install etcd /usr/local/bin
+    else
+      curl -L https://github.com/coreos/etcd/releases/download/v$version/etcd-v$version-linux-$arch.tar.gz -O
+      tar xzvf etcd-v$version-linux-$arch.tar.gz
+      sudo install etcd-v$version-linux-$arch/etcd /usr/local/bin
+    fi
 - mode: system
   script: |
     #!/bin/bash
