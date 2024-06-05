@@ -81,7 +81,8 @@ provision:
     cp -f $KUBECONFIG {{.Home}}/.kube/config
     chown -R {{.User}} {{.Home}}/.kube
 probes:
-- script: |
+- description: "docker to be running"
+  script: |
     #!/bin/bash
     set -eux -o pipefail
     if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
@@ -93,7 +94,8 @@ probes:
       exit 1
     fi
   hint: See "/var/log/cloud-init-output.log". in the guest
-- script: |
+- description: "kubernetes to be running"
+  script: |
     #!/bin/bash
     set -eux -o pipefail
     if ! timeout 300s bash -c "until test -f ~/.kube/config; do sleep 3; done"; then
