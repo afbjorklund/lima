@@ -62,6 +62,20 @@ var tableTwo = "NAME    STATUS     SSH            VMTYPE    ARCH       CPUS    M
 	"foo     Stopped    127.0.0.1:0    qemu      x86_64     0       0B        0B\n" +
 	"bar     Stopped    127.0.0.1:0    vz        aarch64    0       0B        0B\n"
 
+var ascii = "" +
+	"+------+---------+-------------+--------+--------+------+--------+------+-----+\n" +
+	"| NAME | STATUS  |     SSH     | VMTYPE |  ARCH  | CPUS | MEMORY | DISK | DIR |\n" +
+	"+------+---------+-------------+--------+--------+------+--------+------+-----+\n" +
+	"| foo  | Stopped | 127.0.0.1:0 | qemu   | x86_64 | 0    | 0B     | 0B   | dir |\n" +
+	"+------+---------+-------------+--------+--------+------+--------+------+-----+\n"
+
+var pretty = "" +
+	"┌──────┬─────────┬─────────────┬────────┬────────┬──────┬────────┬──────┬─────┐\n" +
+	"│ NAME │ STATUS  │     SSH     │ VMTYPE │  ARCH  │ CPUS │ MEMORY │ DISK │ DIR │\n" +
+	"├──────┼─────────┼─────────────┼────────┼────────┼──────┼────────┼──────┼─────┤\n" +
+	"│ foo  │ Stopped │ 127.0.0.1:0 │ qemu   │ x86_64 │ 0    │ 0B     │ 0B   │ dir │\n" +
+	"└──────┴─────────┴─────────────┴────────┴────────┴──────┴────────┴──────┴─────┘\n"
+
 func TestPrintInstanceTable(t *testing.T) {
 	var buf bytes.Buffer
 	instances := []*Instance{&instance}
@@ -154,4 +168,21 @@ func TestPrintInstanceTableTwo(t *testing.T) {
 	err := PrintInstances(&buf, instances, "table", &options)
 	assert.NilError(t, err)
 	assert.Equal(t, tableTwo, buf.String())
+}
+
+func TestPrintInstancePretty(t *testing.T) {
+	var buf bytes.Buffer
+	instances := []*Instance{&instance}
+	err := PrintInstances(&buf, instances, "pretty", nil)
+	assert.NilError(t, err)
+	assert.Equal(t, ascii, buf.String())
+}
+
+func TestPrintInstancePrettyUnicode(t *testing.T) {
+	var buf bytes.Buffer
+	instances := []*Instance{&instance}
+	options := PrintOptions{Unicode: true}
+	err := PrintInstances(&buf, instances, "pretty", &options)
+	assert.NilError(t, err)
+	assert.Equal(t, pretty, buf.String())
 }

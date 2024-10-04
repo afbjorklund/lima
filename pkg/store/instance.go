@@ -23,6 +23,7 @@ import (
 	"github.com/lima-vm/lima/pkg/store/filenames"
 	"github.com/lima-vm/lima/pkg/textutil"
 	"github.com/lima-vm/lima/pkg/version/versionutil"
+	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 )
 
@@ -275,10 +276,12 @@ func AddGlobalFields(inst *Instance) (FormatData, error) {
 type PrintOptions struct {
 	AllFields     bool
 	TerminalWidth int
+	Unicode       bool
+	Color         bool
 }
 
 // PrintInstances prints instances in a requested format to a given io.Writer.
-// Supported formats are "json", "yaml", "table", or a go template.
+// Supported formats are "json", "yaml", "table", "pretty", or a go template.
 func PrintInstances(w io.Writer, instances []*Instance, format string, options *PrintOptions) error {
 	switch format {
 	case "json":
@@ -386,6 +389,62 @@ func PrintInstances(w io.Writer, instances []*Instance, format string, options *
 			fmt.Fprint(w, "\n")
 		}
 		return w.Flush()
+	case "pretty":
+		u, err := user.Current()
+		if err != nil {
+			return err
+		}
+		homeDir := u.HomeDir
+
+		table := tablewriter.NewWriter(w)
+		table.SetHeader([]string{
+			"Name",
+			"Status",
+			"SSH",
+			"VMType",
+			"Arch",
+			"CPUs",
+			"Memory",
+			"Disk",
+			"Dir",
+		})
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		if options != nil && options.Color {
+			table.SetHeaderColor(
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+				tablewriter.Colors{tablewriter.Bold},
+			)
+		}
+		if options != nil && options.Unicode {
+			table.SetUnicodeHV(tablewriter.Regular, tablewriter.Regular)
+		}
+		for _, instance := range instances {
+			dir := instance.Dir
+			if strings.HasPrefix(dir, homeDir) {
+				dir = strings.Replace(dir, homeDir, "~", 1)
+			}
+
+			table.Append([]string{
+				instance.Name,
+				instance.Status,
+				fmt.Sprintf("%s:%d", instance.SSHAddress, instance.SSHLocalPort),
+				instance.VMType,
+				instance.Arch,
+				fmt.Sprintf("%d", instance.CPUs),
+				units.BytesSize(float64(instance.Memory)),
+				units.BytesSize(float64(instance.Disk)),
+				dir,
+			})
+		}
+		table.Render()
+		return nil
 	default:
 		// NOP
 	}

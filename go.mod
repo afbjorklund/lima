@@ -32,6 +32,7 @@ require (
 	github.com/miekg/dns v1.1.62
 	github.com/mikefarah/yq/v4 v4.44.3
 	github.com/nxadm/tail v1.4.11
+	github.com/olekukonko/tablewriter v0.0.6-0.20230422123214-2c8c9fdbed63
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/rjeczalik/notify v0.9.3

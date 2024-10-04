@@ -44,6 +44,7 @@ The output can be presented in one of several formats, using the --format <forma
   --format json  - output in json format
   --format yaml  - output in yaml format
   --format table - output in table format
+  --format pretty - output in pretty format
   --format '{{ <go template> }}' - if the format begins and ends with '{{ }}', then it is used as a go template.
 ` + store.FormatHelp + `
 The following legacy flags continue to function:
@@ -54,7 +55,7 @@ The following legacy flags continue to function:
 		GroupID:           basicCommand,
 	}
 
-	listCommand.Flags().StringP("format", "f", "table", "output format, one of: json, yaml, table, go-template")
+	listCommand.Flags().StringP("format", "f", "table", "output format, one of: json, yaml, table, pretty, go-template")
 	listCommand.Flags().Bool("list-fields", false, "List fields available for format")
 	listCommand.Flags().Bool("json", false, "JSONify output")
 	listCommand.Flags().BoolP("quiet", "q", false, "Only show names")
@@ -187,7 +188,7 @@ func listAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	options := store.PrintOptions{AllFields: allFields}
+	options := store.PrintOptions{AllFields: allFields, Unicode: true, Color: true}
 	out := cmd.OutOrStdout()
 	if out == os.Stdout {
 		if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
