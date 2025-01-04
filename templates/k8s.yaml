@@ -95,10 +95,19 @@ provision:
   script: |
     #!/bin/bash
     set -eux -o pipefail
-    test -e /etc/kubernetes/admin.conf && exit 0
-    export KUBECONFIG=/etc/kubernetes/admin.conf
+    test -e /etc/kubernetes/tmp/pull-done && exit 0
+    systemctl stop kubelet
     kubeadm config images list
     kubeadm config images pull --cri-socket=unix:///run/containerd/containerd.sock
+    systemctl start kubelet
+    mkdir -p /etc/kubernetes/tmp
+    touch /etc/kubernetes/tmp/pull-done
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    test -e /etc/kubernetes/admin.conf && exit 0
+    export KUBECONFIG=/etc/kubernetes/admin.conf
     # Initializing your control-plane node
     cat <<EOF >kubeadm-config.yaml
     kind: InitConfiguration
@@ -145,6 +154,14 @@ probes:
     fi
   hint: |
     See "/var/log/cloud-init-output.log" in the guest
+- description: "kubernetes images to be pulled"
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until test -e /etc/kubernetes/tmp/pull-done; do sleep 3; done"; then
+      echo >&2 "k8s images are not pulled yet"
+      exit 1
+    fi
 - description: "kubeadm to be completed"
   script: |
     #!/bin/bash
