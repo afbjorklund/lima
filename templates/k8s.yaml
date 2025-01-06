@@ -97,8 +97,16 @@ provision:
     set -eux -o pipefail
     test -e /etc/kubernetes/tmp/pull-done && exit 0
     systemctl stop kubelet
-    kubeadm config images list
-    kubeadm config images pull --cri-socket=unix:///run/containerd/containerd.sock
+    # Support adding archives of required images, for an "air-gapped" installation.
+    if [ -d /var/lib/kubernetes/images ]; then
+      for tar in /var/lib/kubernetes/images/*.tar*; do
+        # Also supports other compression formats. Delete the compressed layer copies.
+        zstdcat "$tar" | ctr -n k8s.io images import --local --discard-unpacked-layers -
+      done
+    else
+      kubeadm config images list
+      kubeadm config images pull --cri-socket=unix:///run/containerd/containerd.sock
+    fi
     systemctl start kubelet
     mkdir -p /etc/kubernetes/tmp
     touch /etc/kubernetes/tmp/pull-done
