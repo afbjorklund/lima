@@ -20,9 +20,6 @@ mounts:
 - location: "/tmp/lima"
   writable: true
 
-additionalDisks:
-- "zfs"
-
 containerd:
   system: false
   user: false
