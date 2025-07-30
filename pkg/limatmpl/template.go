@@ -4,9 +4,12 @@
 package limatmpl
 
 import (
+	"path"
 	"strings"
 
 	"github.com/lima-vm/lima/v2/pkg/limayaml"
+
+	"github.com/hjson/hjson-go/v4"
 )
 
 type Template struct {
@@ -34,6 +37,18 @@ func (tmpl *Template) ClearOnError(err error) error {
 func (tmpl *Template) Unmarshal() error {
 	if tmpl.Config == nil {
 		tmpl.Config = &limayaml.LimaYAML{}
+		if path.Ext(tmpl.Locator) == ".hjson" {
+			var y limayaml.LimaYAML
+			err := hjson.Unmarshal(tmpl.Bytes, &y)
+			if err != nil {
+				return err
+			}
+			b, err := limayaml.Marshal(&y, false)
+			if err != nil {
+				return err
+			}
+			tmpl.Bytes = b
+		}
 		if err := limayaml.Unmarshal(tmpl.Bytes, tmpl.Config, tmpl.Locator); err != nil {
 			tmpl.Config = nil
 			return err

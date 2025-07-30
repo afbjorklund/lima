@@ -23,6 +23,7 @@ require (
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/yamlfmt v0.17.2
+	github.com/hjson/hjson-go/v4 v4.5.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/lima-vm/go-qcow2reader v0.6.0
 	github.com/lima-vm/sshocker v0.3.8 // gomodjail:unconfined
