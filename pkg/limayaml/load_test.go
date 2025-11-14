@@ -4,6 +4,8 @@
 package limayaml
 
 import (
+	"fmt"
+	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -67,4 +69,24 @@ additionalDisks:
 	assert.Assert(t, len(y.AdditionalDisks[0].FSArgs) == 2)
 	assert.Equal(t, y.AdditionalDisks[0].FSArgs[0], "-i")
 	assert.Equal(t, y.AdditionalDisks[0].FSArgs[1], "size=512")
+}
+
+func TestLoadCPUsInteger(t *testing.T) {
+	s := `
+cpus: 4
+`
+	y, err := Load(t.Context(), []byte(s), "cpus.yaml")
+	assert.NilError(t, err)
+	assert.Assert(t, y.CPUs != nil)
+	assert.Equal(t, *y.CPUs, fmt.Sprintf("%d", 4))
+}
+
+func TestLoadCPUsString(t *testing.T) {
+	s := `
+cpus: host
+`
+	y, err := Load(t.Context(), []byte(s), "cpus.yaml")
+	assert.NilError(t, err)
+	assert.Assert(t, y.CPUs != nil)
+	assert.Equal(t, *y.CPUs, fmt.Sprintf("%d", runtime.NumCPU()))
 }

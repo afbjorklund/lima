@@ -86,7 +86,7 @@ func Validate(y *limatype.LimaYAML, warn bool) error {
 		}
 	}
 
-	if *y.CPUs == 0 {
+	if *y.CPUs == "" {
 		errs = errors.Join(errs, errors.New("field `cpus` must be set"))
 	}
 

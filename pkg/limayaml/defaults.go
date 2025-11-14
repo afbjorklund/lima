@@ -100,6 +100,10 @@ func defaultCPUs() int {
 	return x
 }
 
+func defaultCPUsAsString() string {
+	return fmt.Sprintf("%d", defaultCPUs())
+}
+
 func defaultMemory() uint64 {
 	const x uint64 = 4 * 1024 * 1024 * 1024
 	if halfOfHostMemory := memory.TotalMemory() / 2; halfOfHostMemory < x {
@@ -244,8 +248,21 @@ func FillDefault(ctx context.Context, y, d, o *limatype.LimaYAML, filePath strin
 	if o.CPUs != nil {
 		y.CPUs = o.CPUs
 	}
-	if y.CPUs == nil || *y.CPUs == 0 {
-		y.CPUs = ptr.Of(defaultCPUs())
+	if y.CPUs == nil || *y.CPUs == "" {
+		y.CPUs = ptr.Of(defaultCPUsAsString())
+	}
+
+	switch *y.CPUs {
+	case "host":
+		numCPUs := fmt.Sprintf("%d", runtime.NumCPU())
+		y.CPUs = ptr.Of(numCPUs)
+	case "max":
+		maxCPUs := fmt.Sprintf("%d", runtime.NumCPU()-2) // 2 is arbitrary
+		y.CPUs = ptr.Of(maxCPUs)
+	default:
+		if _, err := strconv.Atoi(*y.CPUs); err != nil {
+			logrus.WithError(err).Warnf("Can't parse `cpus` %q", *y.CPUs)
+		}
 	}
 
 	if y.Memory == nil {

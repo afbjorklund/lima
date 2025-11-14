@@ -77,7 +77,7 @@ func TestFillDefault(t *testing.T) {
 	builtin := limatype.LimaYAML{
 		OS:                 ptr.Of(limatype.LINUX),
 		Arch:               ptr.Of(arch),
-		CPUs:               ptr.Of(defaultCPUs()),
+		CPUs:               ptr.Of(defaultCPUsAsString()),
 		Memory:             ptr.Of(defaultMemoryAsString()),
 		Disk:               ptr.Of(defaultDiskSizeAsString()),
 		GuestInstallPrefix: ptr.Of(defaultGuestInstallPrefix()),
@@ -314,7 +314,7 @@ func TestFillDefault(t *testing.T) {
 		// Remove driver-specific VMType from defaults test
 		OS:     ptr.Of("unknown"),
 		Arch:   ptr.Of("unknown"),
-		CPUs:   ptr.Of(7),
+		CPUs:   ptr.Of("7"),
 		Memory: ptr.Of("5GiB"),
 		Disk:   ptr.Of("105GiB"),
 		AdditionalDisks: []limatype.Disk{
@@ -506,7 +506,7 @@ func TestFillDefault(t *testing.T) {
 		// Remove driver-specific VMType from override test
 		OS:     ptr.Of(limatype.LINUX),
 		Arch:   ptr.Of(arch),
-		CPUs:   ptr.Of(12),
+		CPUs:   ptr.Of("12"),
 		Memory: ptr.Of("7GiB"),
 		Disk:   ptr.Of("117GiB"),
 		AdditionalDisks: []limatype.Disk{

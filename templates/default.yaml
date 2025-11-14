@@ -22,7 +22,7 @@ arch: null
 images: []
 
 # CPUs
-# 🟢 Builtin default: min(4, host CPU cores)
+# 🟢 Builtin default: min(4, "host" = available CPUs)
 cpus: null
 
 # Memory size

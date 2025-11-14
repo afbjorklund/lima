@@ -39,7 +39,7 @@ func Cmdline(inst *limatype.Instance) (*exec.Cmd, error) {
 	args := []string{
 		// Memory in MiB
 		"--memory", strconv.FormatInt(memBytes/units.MiB, 10),
-		"--cpus", fmt.Sprintf("%d", *inst.Config.CPUs),
+		"--cpus", *inst.Config.CPUs,
 		"--device", fmt.Sprintf("virtio-serial,logFilePath=%s", filepath.Join(inst.Dir, filenames.SerialLog)),
 		"--krun-log-level", logLevelInfo,
 		"--restful-uri", "none://",

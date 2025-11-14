@@ -237,6 +237,10 @@ func createInitialConfig(inst *limatype.Instance) (*vz.VirtualMachineConfigurati
 		return nil, err
 	}
 
+	cpus, err := strconv.ParseUint(*inst.Config.CPUs, 10, 32)
+	if err != nil {
+		return nil, err
+	}
 	bytes, err := units.RAMInBytes(*inst.Config.Memory)
 	if err != nil {
 		return nil, err
@@ -244,7 +248,7 @@ func createInitialConfig(inst *limatype.Instance) (*vz.VirtualMachineConfigurati
 
 	vmConfig, err := vz.NewVirtualMachineConfiguration(
 		bootLoader,
-		uint(*inst.Config.CPUs),
+		uint(cpus),
 		uint64(bytes),
 	)
 	if err != nil {

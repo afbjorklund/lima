@@ -88,7 +88,10 @@ func Inspect(ctx context.Context, instName string) (*limatype.Instance, error) {
 		}
 	}
 
-	inst.CPUs = *y.CPUs
+	cpus, err := strconv.Atoi(*y.CPUs)
+	if err == nil {
+		inst.CPUs = cpus
+	}
 	memory, err := units.RAMInBytes(*y.Memory)
 	if err == nil {
 		inst.Memory = memory

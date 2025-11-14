@@ -588,8 +588,12 @@ func Cmdline(ctx context.Context, cfg Config) (exe string, args []string, err er
 	}
 
 	// SMP
+	cpus, err := strconv.Atoi(*y.CPUs)
+	if err != nil {
+		return "", nil, err
+	}
 	args = appendArgsIfNoConflict(args, "-smp",
-		fmt.Sprintf("%d,sockets=1,cores=%d,threads=1", *y.CPUs, *y.CPUs))
+		fmt.Sprintf("%d,sockets=1,cores=%d,threads=1", cpus, cpus))
 
 	// Firmware
 	legacyBIOS := *y.Firmware.LegacyBIOS

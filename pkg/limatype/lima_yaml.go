@@ -22,7 +22,7 @@ type LimaYAML struct {
 	Images             []Image       `yaml:"images,omitempty" json:"images,omitempty" jsonschema:"nullable"`
 	// Deprecated: Use vmOpts.qemu.cpuType instead.
 	CPUType               CPUType       `yaml:"cpuType,omitempty" json:"cpuType,omitempty" jsonschema:"nullable"`
-	CPUs                  *int          `yaml:"cpus,omitempty" json:"cpus,omitempty" jsonschema:"nullable"`
+	CPUs                  *string       `yaml:"cpus,omitempty" json:"cpus,omitempty" jsonschema:"nullable"`     // int, "host", "max"
 	Memory                *string       `yaml:"memory,omitempty" json:"memory,omitempty" jsonschema:"nullable"` // go-units.RAMInBytes
 	Disk                  *string       `yaml:"disk,omitempty" json:"disk,omitempty" jsonschema:"nullable"`     // go-units.RAMInBytes
 	AdditionalDisks       []Disk        `yaml:"additionalDisks,omitempty" json:"additionalDisks,omitempty" jsonschema:"nullable"`
